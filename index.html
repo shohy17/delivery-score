@@ -1,1 +1,1850 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<title>配達単価チェッカー</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Space+Mono:wght@400;700&display=swap');
 
+:root {
+  --bg:#0a0f0d; --bg2:#0f1611;
+  --surface:#131a15; --surface2:#1a2420; --surface3:#1f2e28;
+  --border:#1e3028; --border2:#243d33;
+  --accent:#00e676; --accent2:#00bfa5;
+  --accent-dim:rgba(0,230,118,0.12); --accent-glow:rgba(0,230,118,0.25);
+  --yellow:#ffc107; --red:#ff5252; --blue:#29b6f6;
+  --text:#e0efe8; --text2:#8aab98; --text3:#4d7060;
+  --uber-color:#06c167; --rocket-color:#ff6b35;
+  --r:16px; --r-sm:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:84px;overflow-x:hidden;}
+
+/* BG */
+.bg-glow{position:fixed;top:-200px;left:50%;transform:translateX(-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(0,230,118,0.06) 0%,transparent 70%);pointer-events:none;z-index:0;}
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(10,15,13,0.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;padding-bottom:env(safe-area-inset-bottom,0);}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px 8px;border:none;background:transparent;color:var(--text3);cursor:pointer;font-family:inherit;font-size:10px;font-weight:500;gap:4px;transition:color .2s;}
+.nav-btn.active{color:var(--accent);}
+.nav-icon{font-size:20px;line-height:1;}
+
+/* ── PAGES ── */
+.page{display:none;position:relative;z-index:1;}
+.page.active{display:block;}
+
+/* ── PLATFORM SELECTOR ── */
+.platform-bar{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:50;
+  backdrop-filter:blur(12px);
+}
+.platform-label{font-size:11px;color:var(--text3);font-weight:700;white-space:nowrap;}
+.platform-toggle{
+  display:flex;background:var(--surface2);border:1px solid var(--border);
+  border-radius:30px;padding:3px;gap:2px;flex:1;
+}
+.platform-btn{
+  flex:1;padding:7px 10px;border:none;border-radius:24px;
+  font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;
+  transition:all .2s;color:var(--text3);background:transparent;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+}
+.platform-btn.active-uber{background:var(--uber-color);color:#fff;}
+.platform-btn.active-rocket{background:var(--rocket-color);color:#fff;}
+.platform-btn:not(.active-uber):not(.active-rocket):hover{color:var(--text2);}
+
+/* ── HOME HEADER ── */
+.home-header{padding:24px 20px 16px;text-align:center;background:linear-gradient(180deg,rgba(0,230,118,0.04) 0%,transparent 100%);}
+.app-icon{width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#0d2e1e,#1a4a2e);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px;box-shadow:0 0 30px rgba(0,230,118,0.15);}
+.app-name{font-size:20px;font-weight:900;letter-spacing:-0.5px;}
+.app-sub{font-size:11px;color:var(--text2);margin-top:3px;}
+
+/* ── SALES CARD ── */
+.sales-card{margin:0 16px 14px;background:linear-gradient(135deg,#0d2a1c,#0f3524);border:1px solid var(--border2);border-radius:var(--r);padding:18px;position:relative;overflow:hidden;transition:border-color .3s;}
+.sales-card.platform-uber{border-color:rgba(6,193,103,0.4);}
+.sales-card.platform-rocket{border-color:rgba(255,107,53,0.4);}
+.sales-card::before{content:'';position:absolute;top:-40px;right:-40px;width:150px;height:150px;background:radial-gradient(circle,rgba(0,230,118,0.1),transparent 70%);}
+.sales-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.sales-tag{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text2);}
+.sales-tag-icon{width:24px;height:24px;border-radius:6px;background:var(--accent-dim);border:1px solid rgba(0,230,118,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;}
+.analysis-count{font-size:12px;color:var(--text3);}
+.sales-amount-label{font-size:11px;color:var(--text2);margin-bottom:3px;}
+.sales-amount{font-family:'Space Mono',monospace;font-size:38px;font-weight:700;color:var(--accent);letter-spacing:-1px;}
+
+/* ── FILTER ROW (history/report) ── */
+.filter-bar{
+  display:flex;gap:6px;padding:10px 16px;
+  border-bottom:1px solid var(--border);
+  overflow-x:auto;scrollbar-width:none;
+}
+.filter-bar::-webkit-scrollbar{display:none;}
+.filter-chip{
+  padding:6px 14px;border-radius:20px;border:1px solid var(--border2);
+  background:var(--surface2);color:var(--text3);
+  font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;
+  white-space:nowrap;transition:all .2s;
+}
+.filter-chip.active{background:var(--accent);color:#0a0f0d;border-color:var(--accent);}
+.filter-chip.chip-uber.active{background:var(--uber-color);border-color:var(--uber-color);color:#fff;}
+.filter-chip.chip-rocket.active{background:var(--rocket-color);border-color:var(--rocket-color);color:#fff;}
+
+/* ── STATS GRIDS ── */
+.section-label{font-size:11px;color:var(--text3);font-weight:700;letter-spacing:1px;margin:12px 0 8px;}
+.stats-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.stats-grid-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px;margin-top:8px;}
+.stat-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 6px;text-align:center;}
+.stat-icon{width:32px;height:32px;border-radius:9px;background:var(--accent-dim);border:1px solid rgba(0,230,118,0.2);display:flex;align-items:center;justify-content:center;font-size:14px;margin:0 auto 5px;}
+.stat-label{font-size:9px;color:var(--text3);margin-bottom:2px;font-weight:500;}
+.stat-value{font-size:12px;font-weight:900;color:var(--text);}
+.stat-value.accent{color:var(--accent);}
+
+/* ── PLATFORM BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;}
+.badge-uber{background:rgba(6,193,103,0.15);color:var(--uber-color);border:1px solid rgba(6,193,103,0.3);}
+.badge-rocket{background:rgba(255,107,53,0.15);color:var(--rocket-color);border:1px solid rgba(255,107,53,0.3);}
+.badge-all{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(0,230,118,0.3);}
+
+/* ── OCR SECTION ── */
+.ocr-section{margin:14px 16px 0;}
+.auto-save-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--text2);}
+.toggle{width:46px;height:26px;background:var(--surface3);border-radius:13px;position:relative;cursor:pointer;border:1px solid var(--border2);transition:background .2s;}
+.toggle.on{background:var(--accent);}
+.toggle-thumb{position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:left .2s;}
+.toggle.on .toggle-thumb{left:23px;}
+.shortcut-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;font-size:14px;color:var(--text2);}
+.shortcut-btn{display:flex;align-items:center;gap:6px;color:var(--accent);font-size:13px;font-weight:700;cursor:pointer;}
+
+.upload-zone{border:1.5px dashed var(--border2);border-radius:var(--r);padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;margin:10px 0;position:relative;overflow:hidden;}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--accent-dim);}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-icon{width:48px;height:48px;border-radius:14px;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:20px;margin:0 auto 10px;}
+.upload-title{font-size:14px;font-weight:700;margin-bottom:3px;}
+.upload-sub{font-size:11px;color:var(--text3);}
+
+/* OCR PLATFORM HINT */
+.ocr-platform-hint{
+  display:flex;align-items:center;gap:8px;padding:9px 12px;
+  border-radius:var(--r-sm);margin-bottom:8px;font-size:12px;font-weight:600;
+  transition:all .3s;
+}
+.ocr-platform-hint.hint-uber{background:rgba(6,193,103,0.1);border:1px solid rgba(6,193,103,0.25);color:var(--uber-color);}
+.ocr-platform-hint.hint-rocket{background:rgba(255,107,53,0.1);border:1px solid rgba(255,107,53,0.25);color:var(--rocket-color);}
+
+.analyze-btn{width:100%;padding:16px;border:none;border-radius:var(--r);background:var(--accent);color:#0a0f0d;font-size:15px;font-weight:900;font-family:inherit;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:4px;}
+.analyze-btn:active{transform:scale(0.98);opacity:.9;}
+
+/* OCR PREVIEW */
+.ocr-preview{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);padding:13px;margin:8px 0;display:none;}
+.ocr-preview.show{display:block;}
+.ocr-preview-title{font-size:11px;color:var(--text3);margin-bottom:8px;font-weight:700;}
+.ocr-field{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:13px;border-bottom:1px solid var(--border);}
+.ocr-field:last-child{border-bottom:none;}
+.ocr-field-label{color:var(--text3);}
+.ocr-field-input{background:transparent;border:none;outline:none;color:var(--accent);font-weight:700;font-family:'Space Mono',monospace;font-size:13px;text-align:right;width:120px;}
+
+/* ── HISTORY ── */
+.page-header{padding:16px 16px 12px;font-size:18px;font-weight:900;border-bottom:1px solid var(--border);}
+.history-item{padding:13px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.history-dot-wrap{flex-shrink:0;}
+.history-left{flex:1;min-width:0;}
+.history-date{font-size:13px;font-weight:700;margin-bottom:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.history-meta{font-size:11px;color:var(--text3);}
+.history-right{text-align:right;flex-shrink:0;}
+.history-sales{font-size:15px;font-weight:900;color:var(--accent);}
+.history-hourly{font-size:10px;color:var(--text3);margin-top:1px;}
+.history-delete{padding:4px 8px;border:1px solid rgba(255,82,82,0.3);border-radius:6px;background:rgba(255,82,82,0.08);color:var(--red);font-size:10px;cursor:pointer;font-family:inherit;flex-shrink:0;}
+
+.empty-state{padding:50px 20px;text-align:center;color:var(--text3);}
+.empty-icon{font-size:44px;margin-bottom:10px;}
+.empty-text{font-size:14px;font-weight:700;color:var(--text2);}
+.empty-sub{font-size:12px;margin-top:5px;}
+
+/* ── REPORT ── */
+.report-header{padding:16px 16px 0;display:flex;align-items:center;justify-content:space-between;}
+.report-title{font-size:18px;font-weight:900;}
+.perf-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 16px;}
+.perf-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:13px;}
+.perf-label{font-size:10px;color:var(--text3);margin-bottom:4px;display:flex;align-items:center;gap:4px;}
+.perf-value{font-size:18px;font-weight:900;}
+.perf-unit{font-size:10px;color:var(--text3);margin-left:2px;}
+
+.advice-card{margin:0 16px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:15px;}
+.advice-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.advice-title{font-size:14px;font-weight:700;}
+.ai-badge{display:flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid rgba(255,193,7,0.4);border-radius:20px;background:rgba(255,193,7,0.08);font-size:11px;font-weight:700;color:var(--yellow);cursor:pointer;transition:all .2s;}
+.ai-badge:active{transform:scale(0.96);}
+.advice-item{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;line-height:1.6;}
+.advice-item:last-child{border-bottom:none;}
+.advice-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+.ai-thinking{text-align:center;padding:16px;color:var(--text3);font-size:13px;display:none;}
+.ai-thinking.show{display:block;}
+
+.compare-section{margin:0 16px 14px;}
+.compare-title{font-size:13px;font-weight:700;color:var(--text2);margin-bottom:8px;}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.compare-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:13px;}
+.compare-card.best{border-color:rgba(255,193,7,0.3);}
+.compare-header{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;margin-bottom:9px;color:var(--text2);}
+.compare-badge{width:20px;height:20px;border-radius:5px;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:10px;}
+.compare-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.compare-label{font-size:10px;color:var(--text3);}
+.compare-val{font-size:12px;font-weight:700;display:flex;align-items:center;gap:2px;}
+.trend-up{color:var(--accent);font-size:10px;}
+
+/* ── SETTINGS ── */
+.settings-header{padding:16px 16px 12px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);}
+.back-btn{color:var(--text2);font-size:20px;cursor:pointer;line-height:1;}
+.settings-title{font-size:18px;font-weight:900;}
+.settings-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin:12px 16px;padding:15px;}
+.settings-section-title{font-size:13px;font-weight:700;margin-bottom:12px;}
+.account-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.account-avatar{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--accent-dim),var(--surface3));border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:18px;}
+.account-name{font-size:14px;font-weight:700;}
+.account-email{font-size:11px;color:var(--text3);margin-top:1px;}
+.logout-btn{width:100%;padding:11px;border:1px solid rgba(255,82,82,0.3);border-radius:var(--r-sm);background:rgba(255,82,82,0.06);color:var(--red);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+.feature-item{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;}
+.feature-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+.info-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.info-row:last-child{border-bottom:none;}
+.info-label{color:var(--text3);}
+.info-value{font-weight:700;font-family:'Space Mono',monospace;font-size:11px;}
+.disclaimer{margin:12px 16px;padding:11px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);font-size:11px;color:var(--text3);line-height:1.7;display:flex;gap:8px;align-items:flex-start;}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.75);align-items:flex-end;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;padding:22px 16px 40px;width:100%;max-height:82vh;overflow-y:auto;animation:slideUp .25s ease;}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.modal-title{font-size:16px;font-weight:900;margin-bottom:14px;}
+.modal-form-group{margin-bottom:11px;}
+.modal-label{font-size:11px;color:var(--text3);font-weight:700;margin-bottom:4px;display:block;}
+.modal-input{width:100%;padding:11px 13px;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-size:14px;font-family:inherit;outline:none;appearance:none;}
+.modal-input:focus{border-color:var(--accent);}
+.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+.modal-btn{padding:13px;border:none;border-radius:var(--r-sm);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;}
+.modal-btn-primary{background:var(--accent);color:#0a0f0d;}
+.modal-btn-cancel{background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
+
+/* ── LOADING / TOAST ── */
+.loading-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(10,15,13,0.88);backdrop-filter:blur(4px);align-items:center;justify-content:center;flex-direction:column;gap:14px;}
+.loading-overlay.show{display:flex;}
+.spinner{width:44px;height:44px;border:3px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{font-size:13px;font-weight:700;color:var(--text2);}
+.toast{position:fixed;bottom:92px;left:50%;transform:translateX(-50%);background:var(--accent);color:#0a0f0d;padding:10px 22px;border-radius:30px;font-size:13px;font-weight:700;opacity:0;transition:opacity .3s;z-index:300;white-space:nowrap;pointer-events:none;}
+.toast.show{opacity:1;}
+
+/* ── INCOME SUPPORT BANNER ── */
+.income-banner{
+  margin:0 16px 16px;
+  background:linear-gradient(160deg,#0b1f14 0%,#0d2a1a 100%);
+  border:1px solid rgba(0,230,118,0.2);
+  border-radius:var(--r);
+  padding:16px;
+  position:relative;overflow:hidden;
+}
+.income-banner::before{
+  content:'';position:absolute;top:-30px;right:-30px;
+  width:120px;height:120px;
+  background:radial-gradient(circle,rgba(0,230,118,0.08),transparent 70%);
+  pointer-events:none;
+}
+.income-banner-header{
+  display:flex;align-items:center;gap:8px;margin-bottom:4px;
+}
+.income-banner-icon{
+  width:28px;height:28px;border-radius:8px;
+  background:rgba(0,230,118,0.12);
+  border:1px solid rgba(0,230,118,0.25);
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;flex-shrink:0;
+}
+.income-banner-title{font-size:14px;font-weight:900;letter-spacing:-0.2px;}
+.income-banner-sub{font-size:11px;color:var(--text3);margin-bottom:14px;margin-left:36px;}
+
+/* CTAボタン共通 */
+.income-cta{
+  display:flex;align-items:center;
+  width:100%;border:none;border-radius:12px;
+  padding:13px 14px;margin-bottom:9px;
+  cursor:pointer;font-family:inherit;
+  text-decoration:none;
+  transition:transform .15s,filter .15s;
+  position:relative;overflow:hidden;
+}
+.income-cta:last-child{margin-bottom:0;}
+.income-cta:active{transform:scale(0.98);filter:brightness(0.92);}
+.income-cta-icon{
+  width:34px;height:34px;border-radius:9px;
+  background:rgba(255,255,255,0.12);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;margin-right:11px;
+}
+.income-cta-body{flex:1;text-align:left;}
+.income-cta-label{font-size:13px;font-weight:900;color:#fff;line-height:1.2;}
+.income-cta-desc{font-size:10px;color:rgba(255,255,255,0.65);margin-top:2px;}
+.income-cta-arrow{
+  font-size:16px;color:rgba(255,255,255,0.5);
+  flex-shrink:0;margin-left:6px;
+  transition:transform .15s;
+}
+.income-cta:hover .income-cta-arrow{transform:translateX(3px);}
+
+/* 個別カラー */
+.income-cta-rocket{
+  background:linear-gradient(135deg,#1a3a6e 0%,#0d2456 100%);
+  border:1px solid rgba(100,160,255,0.25);
+  box-shadow:0 2px 14px rgba(41,91,255,0.15);
+}
+.income-cta-uber{
+  background:linear-gradient(135deg,#0d3d20 0%,#0a2e18 100%);
+  border:1px solid rgba(0,230,118,0.3);
+  box-shadow:0 2px 14px rgba(0,230,118,0.1);
+}
+
+/* Tips親カード */
+.income-tips-card{
+  background:linear-gradient(135deg,#2e1200 0%,#1e0d00 100%);
+  border:1px solid rgba(255,140,0,0.25);
+  border-radius:12px;padding:12px;
+  box-shadow:0 2px 14px rgba(255,100,0,0.08);
+}
+.income-tips-header{
+  display:flex;align-items:center;gap:8px;margin-bottom:10px;
+}
+.income-tips-icon{font-size:16px;}
+.income-tips-title{font-size:12px;font-weight:900;color:#ffb74d;}
+.income-tips-desc{font-size:10px;color:rgba(255,183,77,0.65);margin-left:auto;}
+.income-tips-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.income-tips-btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:10px 8px;border-radius:9px;
+  background:rgba(255,140,0,0.12);
+  border:1px solid rgba(255,140,0,0.25);
+  cursor:pointer;text-decoration:none;
+  transition:all .15s;
+}
+.income-tips-btn:active{transform:scale(0.97);background:rgba(255,140,0,0.2);}
+.income-tips-btn-icon{font-size:18px;margin-bottom:4px;}
+.income-tips-btn-name{font-size:11px;font-weight:700;color:#ffb74d;margin-bottom:1px;}
+.income-tips-btn-sub{font-size:9px;color:rgba(255,183,77,0.55);}
+
+/* ── PLATFORM BREAKDOWN in stats ── */
+.platform-breakdown{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 16px 14px;}
+.pb-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;}
+.pb-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.pb-title{font-size:11px;font-weight:700;}
+.pb-days{font-size:10px;color:var(--text3);}
+.pb-sales{font-size:16px;font-weight:900;color:var(--accent);}
+.pb-meta{font-size:10px;color:var(--text3);margin-top:2px;}
+
+@media(min-width:400px){.sales-amount{font-size:44px;}}
+
+/* ── RANKING PAGE ── */
+.rank-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
+.rank-pos{width:32px;height:32px;border-radius:8px;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;flex-shrink:0;}
+.rank-pos.top1{background:linear-gradient(135deg,#ffd700,#ffed4e);color:#1a1a23;box-shadow:0 2px 12px rgba(255,215,0,0.4);}
+.rank-pos.top2{background:linear-gradient(135deg,#c0c0c0,#e8e8e8);color:#1a1a23;}
+.rank-pos.top3{background:linear-gradient(135deg,#cd7f32,#e8a87c);color:#1a1a23;}
+.rank-user{flex:1;min-width:0;}
+.rank-name{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rank-area{font-size:10px;color:var(--text3);margin-top:1px;}
+.rank-stat{text-align:right;flex-shrink:0;}
+.rank-val{font-size:16px;font-weight:900;color:var(--accent);}
+.rank-label{font-size:9px;color:var(--text3);margin-top:1px;}
+.rank-tabs{display:flex;gap:6px;padding:10px 16px 8px;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;}
+.rank-tabs::-webkit-scrollbar{display:none;}
+.rank-tab{padding:6px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .2s;}
+.rank-tab.active{background:var(--accent);color:#0a0f0d;border-color:var(--accent);}
+
+/* ── LOGIN / AUTH ── */
+.auth-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin:12px 16px;padding:15px;}
+.auth-logged-in{display:none;}
+.auth-logged-in.show{display:block;}
+.auth-logged-out{display:none;}
+.auth-logged-out.show{display:block;}
+.login-btn{width:100%;padding:13px;border:none;border-radius:var(--r-sm);background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;}
+.login-btn:active{transform:scale(0.98);opacity:.9;}
+.user-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;}
+.user-stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px;text-align:center;}
+.user-stat-label{font-size:10px;color:var(--text3);margin-bottom:3px;}
+.user-stat-value{font-size:16px;font-weight:900;color:var(--accent);}
+</style>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<div class="bg-glow"></div>
+
+<!-- ===== HOME ===== -->
+<div id="page-home" class="page active">
+
+  <!-- Platform Selector -->
+  <div class="platform-bar">
+    <span class="platform-label">プラットフォーム</span>
+    <div class="platform-toggle">
+      <button class="platform-btn" id="pb-uber"   onclick="selectPlatform('uber')">🟢 Uber Eats</button>
+      <button class="platform-btn" id="pb-rocket" onclick="selectPlatform('rocketnow')">🟠 RocketNow</button>
+    </div>
+  </div>
+
+  <div class="home-header">
+    <div class="app-icon">📦</div>
+    <div class="app-name">配達単価チェッカー</div>
+    <div class="app-sub">スクリーンショットから売上・距離・時間を自動解析</div>
+  </div>
+
+  <!-- Sales Dashboard -->
+  <div class="sales-card" id="home-sales-card">
+    <div class="sales-header">
+      <div class="sales-tag">
+        <div class="sales-tag-icon">📅</div>
+        本日の結果
+      </div>
+      <div class="analysis-count" id="analysis-count">— 件の解析</div>
+    </div>
+    <div class="sales-amount-label">今日の売上合計</div>
+    <div class="sales-amount" id="home-sales">¥0</div>
+
+    <div class="section-label">集計データ</div>
+    <div class="stats-grid-3">
+      <div class="stat-item">
+        <div class="stat-icon">📦</div>
+        <div class="stat-label">配達件数</div>
+        <div class="stat-value" id="h-count">0件</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon">📍</div>
+        <div class="stat-label">総距離</div>
+        <div class="stat-value" id="h-dist">0km</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon">🕐</div>
+        <div class="stat-label">稼働時間</div>
+        <div class="stat-value" id="h-hours">0h</div>
+      </div>
+    </div>
+    <div class="section-label">効率指標</div>
+    <div class="stats-grid-4">
+      <div class="stat-item">
+        <div class="stat-icon">⏱</div>
+        <div class="stat-label">時給</div>
+        <div class="stat-value accent" id="h-hourly">¥—</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon">🏎</div>
+        <div class="stat-label">円/km</div>
+        <div class="stat-value" id="h-kmprice">¥—</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon">🧾</div>
+        <div class="stat-label">平均単価</div>
+        <div class="stat-value" id="h-unit">¥—</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon">⚡</div>
+        <div class="stat-label">km/h</div>
+        <div class="stat-value" id="h-speed">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 収入アップサポート バナー ===== -->
+  <div class="income-banner" id="income-support-banner">
+    <div class="income-banner-header">
+      <div class="income-banner-icon">⚡</div>
+      <div class="income-banner-title">収入アップサポート</div>
+    </div>
+    <div class="income-banner-sub">配達を始める / 収入源を増やす</div>
+
+    <!-- CTA 1: RocketNow -->
+    <a class="income-cta income-cta-rocket"
+       href="https://rocketnowdriver.app.link/W0BUMKWXP0b"
+       target="_blank" rel="noopener noreferrer"
+       onclick="trackIncomeCta('rocketnow')">
+      <div class="income-cta-icon">🚀</div>
+      <div class="income-cta-body">
+        <div class="income-cta-label">RocketNowで配達を始める</div>
+        <div class="income-cta-desc">紹介特典あり · すぐに稼げる</div>
+      </div>
+      <span class="income-cta-arrow">›</span>
+    </a>
+
+    <!-- CTA 2: Uber Eats -->
+    <a class="income-cta income-cta-uber"
+       href="https://www.uber.com/signup/drive/deliver/?invite_code=mqgntmf"
+       target="_blank" rel="noopener noreferrer"
+       onclick="trackIncomeCta('uber')">
+      <div class="income-cta-icon">🟢</div>
+      <div class="income-cta-body">
+        <div class="income-cta-label">Uberで配達を始める</div>
+        <div class="income-cta-desc">紹介特典あり · 好きな時間に稼働</div>
+      </div>
+      <span class="income-cta-arrow">›</span>
+    </a>
+
+    <!-- CTA 3: Tips（2リンク） -->
+    <div class="income-tips-card">
+      <div class="income-tips-header">
+        <span class="income-tips-icon">📚</span>
+        <span class="income-tips-title">配達＋副業で収入を伸ばす</span>
+        <span class="income-tips-desc">おすすめ</span>
+      </div>
+      <div class="income-tips-row">
+        <a class="income-tips-btn"
+           href="https://tqv.jp/u/hukugyootaku/a/0fFlxtwI/BaID7R6d"
+           target="_blank" rel="noopener noreferrer"
+           onclick="trackIncomeCta('tips_nyafu')">
+          <div class="income-tips-btn-icon">💡</div>
+          <div class="income-tips-btn-name">副業オタクにゃふ〜さん</div>
+          <div class="income-tips-btn-sub">著者・副業ノウハウ</div>
+        </a>
+        <a class="income-tips-btn"
+           href="https://tqv.jp/u/kumasanpou/a/oeHdWEnj/BaID7R6d"
+           target="_blank" rel="noopener noreferrer"
+           onclick="trackIncomeCta('tips_kumasanpo')">
+          <div class="income-tips-btn-icon">🐻</div>
+          <div class="income-tips-btn-name">くまさんぽさん</div>
+          <div class="income-tips-btn-sub">著者・収入アップ術</div>
+        </a>
+      </div>
+    </div>
+  </div>
+  <!-- ===== /収入アップサポート ===== -->
+
+  <!-- OCR Upload -->
+  <div class="ocr-section">
+    <!-- Platform-specific hint -->
+    <div class="ocr-platform-hint" id="ocr-hint"></div>
+
+    <div class="auto-save-row">
+      <span>自動保存</span>
+      <div class="toggle" id="auto-save-toggle" onclick="toggleAutoSave()">
+        <div class="toggle-thumb"></div>
+      </div>
+    </div>
+
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" accept="image/*" multiple id="file-input" onchange="handleFiles(this.files)"/>
+      <div class="upload-icon">⬆️</div>
+      <div class="upload-title">スクリーンショットをアップロード</div>
+      <div class="upload-sub">タップして選択 または ドラッグ&ドロップ</div>
+    </div>
+
+    <div class="ocr-preview" id="ocr-preview">
+      <div class="ocr-preview-title" id="ocr-preview-title">📊 解析結果（編集可能）</div>
+      <div class="ocr-field">
+        <span class="ocr-field-label">売上金額</span>
+        <input class="ocr-field-input" id="ocr-sales" type="number" placeholder="0" oninput="recalcOcr()"/>
+      </div>
+      <div class="ocr-field">
+        <span class="ocr-field-label">配達件数</span>
+        <input class="ocr-field-input" id="ocr-count" type="number" placeholder="0" oninput="recalcOcr()"/>
+      </div>
+      <div class="ocr-field">
+        <span class="ocr-field-label">総距離 (km)</span>
+        <input class="ocr-field-input" id="ocr-dist" type="number" placeholder="0" oninput="recalcOcr()"/>
+      </div>
+      <div class="ocr-field">
+        <span class="ocr-field-label">稼働時間 (h)</span>
+        <input class="ocr-field-input" id="ocr-hours" type="number" placeholder="0" oninput="recalcOcr()"/>
+      </div>
+    </div>
+
+    <button class="analyze-btn" id="analyze-btn" onclick="analyzeScreenshot()">
+      <span>⊡</span> スクリーンショットを解析
+    </button>
+    <div style="text-align:center;font-size:10px;color:var(--text3);padding-bottom:10px;">
+      配達単価チェッカー v5.2 — OCR powered by Tesseract.js
+    </div>
+  </div>
+</div>
+
+<!-- ===== HISTORY ===== -->
+<div id="page-history" class="page">
+  <div class="page-header">📋 履歴</div>
+  <!-- Filter chips -->
+  <div class="filter-bar">
+    <button class="filter-chip active" id="hf-all"    onclick="setHistoryFilter('all')">すべて</button>
+    <button class="filter-chip chip-uber"   id="hf-uber"   onclick="setHistoryFilter('uber')">🟢 Uber Eats</button>
+    <button class="filter-chip chip-rocket" id="hf-rocket" onclick="setHistoryFilter('rocketnow')">🟠 RocketNow</button>
+  </div>
+  <div id="history-list"></div>
+</div>
+
+<!-- ===== REPORT ===== -->
+<div id="page-report" class="page">
+  <div class="report-header">
+    <div class="report-title">デリバリー成績評価</div>
+  </div>
+
+  <!-- Filter chips -->
+  <div class="filter-bar">
+    <button class="filter-chip active" id="rf-all"    onclick="setReportFilter('all')">すべて</button>
+    <button class="filter-chip chip-uber"   id="rf-uber"   onclick="setReportFilter('uber')">🟢 Uber Eats</button>
+    <button class="filter-chip chip-rocket" id="rf-rocket" onclick="setReportFilter('rocketnow')">🟠 RocketNow</button>
+  </div>
+
+  <div class="perf-grid">
+    <div class="perf-item">
+      <div class="perf-label">📦 件数</div>
+      <div class="perf-value"><span id="r-count">—</span><span class="perf-unit">件</span></div>
+    </div>
+    <div class="perf-item">
+      <div class="perf-label">🏎 距離効率</div>
+      <div class="perf-value"><span id="r-kmprice">—</span><span class="perf-unit">円/km</span></div>
+    </div>
+    <div class="perf-item">
+      <div class="perf-label">⏱ 時間効率</div>
+      <div class="perf-value"><span id="r-hourly">—</span><span class="perf-unit">円/h</span></div>
+    </div>
+    <div class="perf-item">
+      <div class="perf-label">⚡ 距離達成度</div>
+      <div class="perf-value"><span id="r-speed">—</span><span class="perf-unit">km/h</span></div>
+    </div>
+  </div>
+
+  <!-- Platform breakdown -->
+  <div class="platform-breakdown" id="platform-breakdown"></div>
+
+  <div class="advice-card">
+    <div class="advice-header">
+      <div class="advice-title">アドバイス</div>
+      <div class="ai-badge" onclick="getAIAdvice()">✦ AIアドバイス</div>
+    </div>
+    <div id="advice-list">
+      <div class="empty-state" style="padding:16px 0">
+        <div class="empty-icon" style="font-size:28px">🤖</div>
+        <div class="empty-text" style="font-size:12px">「AIアドバイス」をタップして分析を開始してください</div>
+      </div>
+    </div>
+    <div class="ai-thinking" id="ai-thinking">✦ AI分析中...</div>
+  </div>
+
+  <div class="compare-section">
+    <div class="compare-title">最高値との比較</div>
+    <div class="compare-grid">
+      <div class="compare-card">
+        <div class="compare-header"><div class="compare-badge">👤</div>ユーザー<span style="font-size:9px;color:var(--text3)">今日</span></div>
+        <div class="compare-row"><div class="compare-label">件数</div><div class="compare-val"><span id="cmp-count">—</span>件 <span class="trend-up">↑</span></div></div>
+        <div class="compare-row"><div class="compare-label">1件単価</div><div class="compare-val"><span id="cmp-unit">—</span>円 <span class="trend-up">↑</span></div></div>
+        <div class="compare-row"><div class="compare-label">距離効率</div><div class="compare-val"><span id="cmp-km">—</span>円/km <span class="trend-up">↑</span></div></div>
+      </div>
+      <div class="compare-card best">
+        <div class="compare-header"><div class="compare-badge">🏆</div>自己最高<span style="font-size:9px;color:var(--text3)">ベスト</span></div>
+        <div class="compare-row"><div class="compare-label">件数</div><div class="compare-val" style="color:var(--yellow)"><span id="best-count">—</span>件 <span class="trend-up">↑</span></div></div>
+        <div class="compare-row"><div class="compare-label">1件単価</div><div class="compare-val" style="color:var(--yellow)"><span id="best-unit">—</span>円 <span class="trend-up">↑</span></div></div>
+        <div class="compare-row"><div class="compare-label">距離効率</div><div class="compare-val" style="color:var(--yellow)"><span id="best-km">—</span>円/km <span class="trend-up">↑</span></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== RANKINGS ===== -->
+<div id="page-rankings" class="page">
+  <div class="page-header">🏆 ランキング</div>
+  
+  <!-- Rank type tabs -->
+  <div class="rank-tabs">
+    <button class="rank-tab active" id="rt-earnings"    onclick="setRankType('earnings')">累計売上</button>
+    <button class="rank-tab"        id="rt-deliveries"  onclick="setRankType('deliveries')">累計件数</button>
+    <button class="rank-tab"        id="rt-hourly"      onclick="setRankType('hourly')">平均時給</button>
+    <button class="rank-tab"        id="rt-efficiency"  onclick="setRankType('efficiency')">距離効率</button>
+  </div>
+
+  <!-- Ranking list -->
+  <div style="padding:12px 16px;" id="rank-list">
+    <div class="empty-state">
+      <div class="empty-icon">🔐</div>
+      <div class="empty-text">ログインが必要です</div>
+      <div class="empty-sub">設定ページからGoogleログインしてください</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SETTINGS ===== -->
+<div id="page-settings" class="page">
+  <div class="settings-header">
+    <div class="back-btn" onclick="switchTab('home')">←</div>
+    <div class="settings-title">設定</div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-section-title">アカウント</div>
+    
+    <!-- Logged Out State -->
+    <div class="auth-logged-out" id="auth-logged-out">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6;">
+        ログインすると、データがクラウドに保存され、自己最高記録・累計統計・ランキング機能が利用できます。
+      </div>
+      <button class="login-btn" onclick="loginWithGoogle()">
+        <span style="font-size:18px">🔐</span>
+        Googleでログイン
+      </button>
+    </div>
+
+    <!-- Logged In State -->
+    <div class="auth-logged-in" id="auth-logged-in">
+      <div class="account-row">
+        <div class="account-avatar" id="user-avatar">👤</div>
+        <div>
+          <div class="account-name" id="user-name">読み込み中...</div>
+          <div class="account-email" id="user-email">—</div>
+        </div>
+      </div>
+      
+      <!-- 累計統計 -->
+      <div class="user-stats-grid" id="user-stats-grid">
+        <div class="user-stat-card">
+          <div class="user-stat-label">累計売上</div>
+          <div class="user-stat-value" id="total-earnings">¥—</div>
+        </div>
+        <div class="user-stat-card">
+          <div class="user-stat-label">累計件数</div>
+          <div class="user-stat-value" id="total-deliveries">—件</div>
+        </div>
+        <div class="user-stat-card">
+          <div class="user-stat-label">累計距離</div>
+          <div class="user-stat-value" id="total-distance">—km</div>
+        </div>
+        <div class="user-stat-card">
+          <div class="user-stat-label">平均時給</div>
+          <div class="user-stat-value" id="avg-hourly">¥—</div>
+        </div>
+      </div>
+
+      <button class="logout-btn" onclick="logout()" style="margin-top:12px;">
+        → ログアウト
+      </button>
+    </div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-section-title">📱 iPhoneショートカット連携</div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.8;">
+      iPhoneのショートカットアプリを使うと、スクリーンショットを撮影後すぐに自動アップロードできます。<br><br>
+      <strong style="color:var(--text)">1. ショートカットアプリを開く</strong><br>
+      <span style="color:var(--text3)">iPhone標準の「ショートカット」アプリを起動し、「+」ボタンをタップして新規ショートカットを作成します。</span>
+    </div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-section-title">利用可能な機能</div>
+    <div class="feature-item"><div class="feature-dot"></div>スクリーンショットOCR解析</div>
+    <div class="feature-item"><div class="feature-dot"></div>プラットフォーム別データ管理</div>
+    <div class="feature-item"><div class="feature-dot"></div>配達ログの保存・管理</div>
+    <div class="feature-item"><div class="feature-dot"></div>日次集計ダッシュボード</div>
+    <div class="feature-item"><div class="feature-dot"></div>パフォーマンススコアリング</div>
+    <div class="feature-item"><div class="feature-dot"></div>AIアドバイス生成</div>
+    <div class="feature-item"><div class="feature-dot"></div>ランキング比較</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:6px;">すべての機能を無料でご利用いただけます</div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-section-title">アプリ情報</div>
+    <div class="info-row"><span class="info-label">バージョン</span><span class="info-value">v5.2</span></div>
+    <div class="info-row"><span class="info-label">OCRエンジン</span><span class="info-value">Tesseract.js</span></div>
+    <div class="info-row"><span class="info-label">AI</span><span class="info-value">Claude LLM</span></div>
+  </div>
+  <div class="disclaimer">
+    <span>ℹ️</span>
+    <span>OCR解析の精度はスクリーンショットの画質や表示内容に依存します。抽出結果が正確でない場合は、手動修正機能をご利用ください。</span>
+  </div>
+</div>
+
+<!-- Manual Input Modal -->
+<div class="modal-overlay" id="manual-modal">
+  <div class="modal">
+    <div class="modal-title">📝 手動でデータを入力</div>
+    <div class="modal-form-group">
+      <label class="modal-label">日付</label>
+      <input type="date" id="m-date" class="modal-input"/>
+    </div>
+    <div class="modal-form-group">
+      <label class="modal-label">プラットフォーム</label>
+      <select id="m-platform" class="modal-input">
+        <option value="uber">🟢 Uber Eats</option>
+        <option value="rocketnow">🟠 RocketNow</option>
+      </select>
+    </div>
+    <div class="modal-form-group">
+      <label class="modal-label">売上金額（円）</label>
+      <input type="number" id="m-sales" class="modal-input" placeholder="例：4976" inputmode="numeric"/>
+    </div>
+    <div class="modal-form-group">
+      <label class="modal-label">配達件数</label>
+      <input type="number" id="m-count" class="modal-input" placeholder="例：4" inputmode="numeric"/>
+    </div>
+    <div class="modal-form-group">
+      <label class="modal-label">総距離（km）</label>
+      <input type="number" id="m-dist" class="modal-input" placeholder="例：28.6" inputmode="decimal" step="0.1"/>
+    </div>
+    <div class="modal-form-group">
+      <label class="modal-label">稼働時間（時間）</label>
+      <input type="number" id="m-hours" class="modal-input" placeholder="例：1.54" inputmode="decimal" step="0.01"/>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-cancel" onclick="closeManualModal()">キャンセル</button>
+      <button class="modal-btn modal-btn-primary" onclick="saveManual()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<div class="bottom-nav">
+  <button class="nav-btn active" id="nav-home"     onclick="switchTab('home')">    <span class="nav-icon">🏠</span>ホーム</button>
+  <button class="nav-btn"        id="nav-history"  onclick="switchTab('history')"> <span class="nav-icon">🕐</span>履歴</button>
+  <button class="nav-btn"        id="nav-report"   onclick="switchTab('report')">  <span class="nav-icon">📋</span>日報</button>
+  <button class="nav-btn"        id="nav-rankings" onclick="switchTab('rankings')"><span class="nav-icon">🏆</span>ランク</button>
+  <button class="nav-btn"        id="nav-settings" onclick="switchTab('settings')"><span class="nav-icon">⚙️</span>設定</button>
+</div>
+
+<div class="loading-overlay" id="loading"><div class="spinner"></div><div class="loading-text" id="loading-text">解析中...</div></div>
+<div class="toast" id="toast"></div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+// ═══════════════════════════════════
+//  FIREBASE CONFIGURATION
+// ═══════════════════════════════════
+// ⚠️ 本番環境では実際のFirebase Configに置き換えてください
+const firebaseConfig = {
+  apiKey: "AIzaSyDEMO_KEY_REPLACE_THIS",
+  authDomain: "delivery-checker-demo.firebaseapp.com",
+  projectId: "delivery-checker-demo",
+  storageBucket: "delivery-checker-demo.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
+};
+
+let app = null;
+let auth = null;
+let db = null;
+let currentUser = null;
+let currentRankType = 'earnings';
+let firebaseEnabled = false;
+
+// Firebase初期化（SDKロード確認付き）
+function initFirebase(){
+  // Firebase SDKが読み込まれているか確認
+  if(typeof firebase === 'undefined'){
+    console.warn('[Firebase] SDK not loaded - app will run in offline mode (localStorage only)');
+    firebaseEnabled = false;
+    return false;
+  }
+  
+  // デモ設定チェック（本番では実際の値に置き換える）
+  if(firebaseConfig.apiKey === "AIzaSyDEMO_KEY_REPLACE_THIS"){
+    console.warn('[Firebase] Demo config detected - app will run in offline mode. Replace firebaseConfig with real values to enable cloud features.');
+    firebaseEnabled = false;
+    return false;
+  }
+  
+  try {
+    // Firebase初期化
+    app = firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    db = firebase.firestore();
+    firebaseEnabled = true;
+    console.log('[Firebase] ✅ Initialized successfully');
+    
+    // Auth状態変更リスナー
+    auth.onAuthStateChanged(user => {
+      currentUser = user;
+      updateAuthUI(user);
+      if(user){
+        console.log('[Auth] ✅ User logged in:', user.email);
+        loadUserStats(user.uid);
+        syncLocalToCloud(user.uid);
+      } else {
+        console.log('[Auth] ℹ️  No user logged in');
+      }
+    });
+    
+    return true;
+  } catch(err){
+    console.error('[Firebase] ❌ Initialization error:', err);
+    firebaseEnabled = false;
+    
+    // エラー詳細をユーザーに表示（開発時のみ）
+    if(err.code === 'auth/invalid-api-key'){
+      console.error('[Firebase] Invalid API key. Please check your firebaseConfig.');
+    } else if(err.code === 'auth/app-deleted'){
+      console.error('[Firebase] Firebase app has been deleted.');
+    }
+    
+    return false;
+  }
+}
+
+// DOMContentLoaded後に確実に初期化
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', ()=>{
+    setTimeout(initFirebase, 100); // SDKロード完了を待つ
+  });
+} else {
+  // すでにDOMロード済みの場合
+  setTimeout(initFirebase, 100);
+}
+
+// ═══════════════════════════════════
+//  AUTH FUNCTIONS
+// ═══════════════════════════════════
+async function loginWithGoogle(){
+  if(!firebaseEnabled || !auth){ 
+    showToast('⚠️ Firebase未設定です。オフラインモードで動作しています。','#ffc107'); 
+    return; 
+  }
+  
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    const result = await auth.signInWithPopup(provider);
+    showToast('✅ ログインしました');
+    console.log('[Auth] Login success:', result.user.email);
+  } catch(err){
+    console.error('[Login Error]', err);
+    
+    // エラー種類別のメッセージ
+    if(err.code === 'auth/popup-blocked'){
+      showToast('⚠️ ポップアップがブロックされました。ブラウザ設定を確認してください。','#ff5252');
+    } else if(err.code === 'auth/popup-closed-by-user'){
+      showToast('ℹ️  ログインがキャンセルされました','#ffc107');
+    } else if(err.code === 'auth/network-request-failed'){
+      showToast('⚠️ ネットワークエラー。接続を確認してください。','#ff5252');
+    } else {
+      showToast('⚠️ ログイン失敗: ' + (err.message || 'Unknown error'),'#ff5252');
+    }
+  }
+}
+
+async function logout(){
+  if(!firebaseEnabled || !auth) return;
+  
+  try {
+    await auth.signOut();
+    showToast('👋 ログアウトしました');
+    console.log('[Auth] Logout success');
+    
+    // UI reset
+    document.getElementById('total-earnings').textContent = '¥—';
+    document.getElementById('total-deliveries').textContent = '—件';
+    document.getElementById('total-distance').textContent = '—km';
+    document.getElementById('avg-hourly').textContent = '¥—';
+  } catch(err){
+    console.error('[Logout Error]', err);
+    showToast('⚠️ ログアウト失敗','#ff5252');
+  }
+}
+
+function updateAuthUI(user){
+  const loggedIn  = document.getElementById('auth-logged-in');
+  const loggedOut = document.getElementById('auth-logged-out');
+  if(user){
+    loggedOut.classList.remove('show');
+    loggedIn.classList.add('show');
+    document.getElementById('user-name').textContent = user.displayName || 'ユーザー';
+    document.getElementById('user-email').textContent = user.email || '';
+    const photoURL = user.photoURL;
+    if(photoURL){
+      document.getElementById('user-avatar').style.backgroundImage = `url(${photoURL})`;
+      document.getElementById('user-avatar').style.backgroundSize = 'cover';
+      document.getElementById('user-avatar').textContent = '';
+    }
+  } else {
+    loggedIn.classList.remove('show');
+    loggedOut.classList.add('show');
+  }
+}
+
+// ═══════════════════════════════════
+//  DATA SYNC & USER STATS
+// ═══════════════════════════════════
+async function syncLocalToCloud(uid){
+  if(!firebaseEnabled || !db){
+    console.log('[Sync] Firebase disabled - skipping cloud sync');
+    return;
+  }
+  
+  const logs = getLogs();
+  if(!logs.length) return;
+  
+  try {
+    const batch = db.batch();
+    let syncCount = 0;
+    
+    logs.forEach(log => {
+      if(!log.userId){ // まだクラウドに上げてないログ
+        const docRef = db.collection('delivery_logs').doc();
+        batch.set(docRef, {
+          userId: uid,
+          date: log.date,
+          earnings: log.sales,
+          deliveries: log.count,
+          distance: log.dist,
+          hours: log.hours,
+          platform: log.platform || 'uber',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          area: null
+        });
+        log.userId = uid; // ローカルにもマーク
+        syncCount++;
+      }
+    });
+    
+    if(syncCount > 0){
+      await batch.commit();
+      saveLogs(logs); // userId付きで保存
+      await updateUserStats(uid);
+      console.log(`[Sync] ✅ ${syncCount} logs synced to cloud`);
+    } else {
+      console.log('[Sync] ℹ️  No new logs to sync');
+    }
+  } catch(err){
+    console.error('[Sync Error]', err);
+    showToast('⚠️ クラウド同期に失敗しました','#ffc107');
+  }
+}
+
+async function saveLogToCloud(uid, log){
+  if(!firebaseEnabled || !db){
+    console.log('[Cloud] Firebase disabled - log saved locally only');
+    return;
+  }
+  
+  try {
+    await db.collection('delivery_logs').add({
+      userId: uid,
+      date: log.date,
+      earnings: log.sales,
+      deliveries: log.count,
+      distance: log.dist,
+      hours: log.hours,
+      platform: log.platform || 'uber',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      area: null
+    });
+    await updateUserStats(uid);
+    console.log('[Cloud] ✅ Log saved to cloud');
+  } catch(err){
+    console.error('[Cloud Save Error]', err);
+  }
+}
+
+async function updateUserStats(uid){
+  if(!firebaseEnabled || !db) return;
+  
+  try {
+    const snapshot = await db.collection('delivery_logs').where('userId','==',uid).get();
+    let totalEarnings=0, totalDeliveries=0, totalDistance=0, totalHours=0;
+    let bestCount=0, bestUnit=0, bestEfficiency=0, bestHourly=0;
+    
+    snapshot.forEach(doc=>{
+      const d = doc.data();
+      totalEarnings += d.earnings||0;
+      totalDeliveries += d.deliveries||0;
+      totalDistance += d.distance||0;
+      totalHours += d.hours||0;
+      
+      if(d.deliveries > bestCount) bestCount = d.deliveries;
+      const unit = d.deliveries>0 ? Math.round(d.earnings/d.deliveries) : 0;
+      if(unit > bestUnit) bestUnit = unit;
+      const eff = d.distance>0 ? Math.round(d.earnings/d.distance) : 0;
+      if(eff > bestEfficiency) bestEfficiency = eff;
+      const hourly = d.hours>0 ? Math.round(d.earnings/d.hours) : 0;
+      if(hourly > bestHourly) bestHourly = hourly;
+    });
+    
+    const avgUnit = totalDeliveries>0 ? Math.round(totalEarnings/totalDeliveries) : 0;
+    const avgHourly = totalHours>0 ? Math.round(totalEarnings/totalHours) : 0;
+    const avgEfficiency = totalDistance>0 ? Math.round(totalEarnings/totalDistance) : 0;
+    
+    // Save user_stats
+    await db.collection('user_stats').doc(uid).set({
+      userId: uid,
+      totalEarnings,
+      totalDeliveries,
+      totalDistance,
+      avgUnitPrice: avgUnit,
+      avgHourly,
+      avgEfficiency,
+      bestHourly,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Save user_best_stats
+    await db.collection('user_best_stats').doc(uid).set({
+      userId: uid,
+      bestCount,
+      bestUnitPrice: bestUnit,
+      bestEfficiency,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Update UI
+    const earningsEl = document.getElementById('total-earnings');
+    const deliveriesEl = document.getElementById('total-deliveries');
+    const distanceEl = document.getElementById('total-distance');
+    const hourlyEl = document.getElementById('avg-hourly');
+    
+    if(earningsEl) earningsEl.textContent = '¥'+totalEarnings.toLocaleString();
+    if(deliveriesEl) deliveriesEl.textContent = totalDeliveries+'件';
+    if(distanceEl) distanceEl.textContent = totalDistance.toFixed(1)+'km';
+    if(hourlyEl) hourlyEl.textContent = '¥'+avgHourly.toLocaleString();
+    
+    // Update best comparison in report
+    const bestCountEl = document.getElementById('best-count');
+    const bestUnitEl = document.getElementById('best-unit');
+    const bestKmEl = document.getElementById('best-km');
+    
+    if(bestCountEl) bestCountEl.textContent = bestCount;
+    if(bestUnitEl) bestUnitEl.textContent = bestUnit.toLocaleString();
+    if(bestKmEl) bestKmEl.textContent = bestEfficiency.toLocaleString();
+    
+    console.log('[Stats] ✅ Updated');
+  } catch(err){
+    console.error('[Stats Update Error]', err);
+  }
+}
+
+async function loadUserStats(uid){
+  if(!firebaseEnabled || !db) return;
+  
+  try {
+    const doc = await db.collection('user_stats').doc(uid).get();
+    if(doc.exists){
+      const d = doc.data();
+      document.getElementById('total-earnings').textContent = '¥'+(d.totalEarnings||0).toLocaleString();
+      document.getElementById('total-deliveries').textContent = (d.totalDeliveries||0)+'件';
+      document.getElementById('total-distance').textContent = (d.totalDistance||0).toFixed(1)+'km';
+      document.getElementById('avg-hourly').textContent = '¥'+(d.avgHourly||0).toLocaleString();
+    }
+    
+    const bestDoc = await db.collection('user_best_stats').doc(uid).get();
+    if(bestDoc.exists){
+      const b = bestDoc.data();
+      document.getElementById('best-count').textContent = b.bestCount||0;
+      document.getElementById('best-unit').textContent = (b.bestUnitPrice||0).toLocaleString();
+      document.getElementById('best-km').textContent = (b.bestEfficiency||0).toLocaleString();
+    }
+  } catch(err){
+    console.error('[Load Stats Error]', err);
+  }
+}
+
+// ═══════════════════════════════════
+//  RANKINGS
+// ═══════════════════════════════════
+function setRankType(type){
+  currentRankType = type;
+  ['earnings','deliveries','hourly','efficiency'].forEach(t=>{
+    document.getElementById('rt-'+t).classList.toggle('active', t===type);
+  });
+  loadRankings(type);
+}
+
+async function loadRankings(type){
+  const el = document.getElementById('rank-list');
+  
+  if(!currentUser){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔐</div><div class="empty-text">ログインが必要です</div><div class="empty-sub">設定ページからGoogleログインしてください</div></div>`;
+    return;
+  }
+  
+  if(!firebaseEnabled || !db){ 
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Firebase未設定</div><div class="empty-sub">オフラインモードで動作中</div></div>`; 
+    return; 
+  }
+  
+  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--text3)">読み込み中...</div>';
+  
+  try {
+    const fieldMap = {
+      earnings: 'totalEarnings',
+      deliveries: 'totalDeliveries',
+      hourly: 'avgHourly',
+      efficiency: 'avgEfficiency'
+    };
+    const field = fieldMap[type];
+    const snapshot = await db.collection('user_stats').orderBy(field, 'desc').limit(100).get();
+    
+    if(snapshot.empty){
+      el.innerHTML=`<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">ランキングデータがありません</div></div>`;
+      return;
+    }
+    
+    const labelMap = {
+      earnings: {suffix:'円', format: v=>'¥'+v.toLocaleString()},
+      deliveries: {suffix:'件', format: v=>v.toLocaleString()+'件'},
+      hourly: {suffix:'円/h', format: v=>'¥'+v.toLocaleString()},
+      efficiency: {suffix:'円/km', format: v=>'¥'+v.toLocaleString()}
+    };
+    const fmt = labelMap[type];
+    
+    let html = '';
+    let rank = 1;
+    snapshot.forEach(doc=>{
+      const d = doc.data();
+      const val = d[field]||0;
+      const isMe = doc.id === currentUser.uid;
+      const posClass = rank===1 ? 'top1' : rank===2 ? 'top2' : rank===3 ? 'top3' : '';
+      
+      html += `<div class="rank-item" style="${isMe?'border-color:var(--accent);background:rgba(0,230,118,0.05);':''}">
+        <div class="rank-pos ${posClass}">${rank}</div>
+        <div class="rank-user">
+          <div class="rank-name">${isMe?'あなた':'ユーザー'+rank}${isMe?' 🎯':''}</div>
+          <div class="rank-area">—</div>
+        </div>
+        <div class="rank-stat">
+          <div class="rank-val">${fmt.format(val)}</div>
+          <div class="rank-label">${fmt.suffix}</div>
+        </div>
+      </div>`;
+      rank++;
+    });
+    el.innerHTML = html;
+  } catch(err){
+    console.error('[Rankings Error]', err);
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">読み込みエラー</div></div>`;
+  }
+}
+
+// ═══════════════════════════════════
+//  INCOME SUPPORT LINKS (定数 — 差し替えはここだけ)
+// ═══════════════════════════════════
+const INCOME_LINKS = {
+  rocketNow:    'https://rocketnowdriver.app.link/W0BUMKWXP0b',
+  uber:         'https://www.uber.com/signup/drive/deliver/?invite_code=mqgntmf',
+  tipsNyafu:    'https://tqv.jp/u/hukugyootaku/a/0fFlxtwI/BaID7R6d',
+  tipsKumasanpo:'https://tqv.jp/u/kumasanpou/a/oeHdWEnj/BaID7R6d',
+};
+
+function trackIncomeCta(type){
+  // クリック計測（将来 GA / Pixel 等に差し替え可能）
+  const labels = {
+    rocketnow:       'RocketNow登録',
+    uber:            'Uber Eats登録',
+    tips_nyafu:      '副業Tips（にゃふ〜）',
+    tips_kumasanpo:  '副業Tips（くまさんぽ）',
+  };
+  console.log('[income_support_click]', { type, label: labels[type]||type, ts: new Date().toISOString() });
+}
+
+// ═══════════════════════════════════
+//  STATE
+// ═══════════════════════════════════
+let currentPlatform = localStorage.getItem('dc_platform') || 'uber';
+let autoSave        = false;
+let pendingOcrData  = null;
+let historyFilter   = 'all';
+let reportFilter    = 'all';
+
+// ═══════════════════════════════════
+//  STORAGE
+// ═══════════════════════════════════
+function getLogs(){ return JSON.parse(localStorage.getItem('dc_logs')||'[]'); }
+function saveLogs(l){ localStorage.setItem('dc_logs', JSON.stringify(l)); }
+function getTodayKey(){ return new Date().toISOString().slice(0,10); }
+
+// ═══════════════════════════════════
+//  INIT
+// ═══════════════════════════════════
+// ═══════════════════════════════════
+//  INIT - DOM Ready後に実行
+// ═══════════════════════════════════
+function init(){
+  try {
+    const dateInput = document.getElementById('m-date');
+    if(dateInput) dateInput.value = getTodayKey();
+    
+    applyPlatformUI(currentPlatform);
+    updateHomeStats();
+    renderHistory();
+    renderReport();
+    setupDragDrop();
+    
+    // デフォルトでログアウト状態を表示
+    const loggedOut = document.getElementById('auth-logged-out');
+    if(loggedOut) loggedOut.classList.add('show');
+    
+    console.log('[App] ✅ Initialized successfully');
+  } catch(err){
+    console.error('[App Init Error]', err);
+  }
+}
+
+// DOMロード完了後に初期化
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+// ═══════════════════════════════════
+//  PLATFORM SELECTOR
+// ═══════════════════════════════════
+function selectPlatform(p){
+  currentPlatform = p;
+  localStorage.setItem('dc_platform', p);
+  applyPlatformUI(p);
+  updateHomeStats();
+}
+
+function applyPlatformUI(p){
+  const isUber   = p === 'uber';
+  const isRocket = p === 'rocketnow';
+
+  // toggle buttons
+  const ub = document.getElementById('pb-uber');
+  const rb = document.getElementById('pb-rocket');
+  ub.className = 'platform-btn' + (isUber   ? ' active-uber'   : '');
+  rb.className = 'platform-btn' + (isRocket ? ' active-rocket' : '');
+
+  // sales card border
+  const card = document.getElementById('home-sales-card');
+  card.classList.toggle('platform-uber',   isUber);
+  card.classList.toggle('platform-rocket', isRocket);
+
+  // OCR hint
+  const hint = document.getElementById('ocr-hint');
+  if(isUber){
+    hint.className = 'ocr-platform-hint hint-uber';
+    hint.innerHTML = '🟢 <strong>Uber Eats</strong> モード — 売上・件数・距離・時間を自動抽出';
+  } else {
+    hint.className = 'ocr-platform-hint hint-rocket';
+    hint.innerHTML = '🟠 <strong>RocketNow</strong> モード — 配達報酬・走行距離を自動抽出';
+  }
+}
+
+// ═══════════════════════════════════
+//  OCR PARSING (platform-specific)
+// ═══════════════════════════════════
+
+// Uber Eats レイアウト例:
+//   配達(2)  ← 件数
+//   ¥2,488   ← 売上
+//   合計 46 分 (14.3 km)  ← 時間・距離
+function parseUberScreenshot(t){
+  const data = { sales:0, count:0, dist:0, hours:0 };
+
+  // 売上: ¥2,488 / ¥ 2488 など
+  const salesM = t.match(/[¥￥]\s*([\d,，]+)/);
+  if(salesM) data.sales = parseInt(salesM[1].replace(/[,，]/g,''));
+
+  // 件数: 配達(2) / 配達 (2) / 2件
+  const countM = t.match(/配達[^\d]*(\d+)/) || t.match(/(\d+)\s*件/);
+  if(countM) data.count = parseInt(countM[1]);
+
+  // 距離: 14.3 km / 14.3km
+  const distM = t.match(/([\d.]+)\s*km/i);
+  if(distM) data.dist = parseFloat(distM[1]);
+
+  // 時間: 46 分 / 46分 → hours  or  1.5h / 1:30
+  const minM = t.match(/(\d+)\s*分/);
+  const hourM = t.match(/([\d.]+)\s*h/i);
+  const colonM = t.match(/(\d+):(\d+)/);
+  if(minM)        data.hours = parseFloat((parseInt(minM[1])/60).toFixed(2));
+  else if(hourM)  data.hours = parseFloat(hourM[1]);
+  else if(colonM) data.hours = parseFloat((parseInt(colonM[1]) + parseInt(colonM[2])/60).toFixed(2));
+
+  return data;
+}
+
+// RocketNow レイアウト例:
+//   871円  ← 売上 (「円」表記、¥なし)
+//   配達距離6.5km  ← 距離
+//   ミッション1件 / 進行予定ミッション1件  ← 件数
+//   時間は画面に出ないことが多い → 0のまま手動入力
+function parseRocketNowScreenshot(t){
+  const data = { sales:0, count:0, dist:0, hours:0 };
+
+  // 売上: 871円 / ¥871 / 1,234円
+  const salesM = t.match(/([\d,，]+)\s*円/) || t.match(/[¥￥]\s*([\d,，]+)/);
+  if(salesM) data.sales = parseInt(salesM[1].replace(/[,，]/g,''));
+
+  // 距離: 配達距離6.5km / 6.5km
+  const distM = t.match(/配達距離\s*([\d.]+)\s*km/i) || t.match(/([\d.]+)\s*km/i);
+  if(distM) data.dist = parseFloat(distM[1]);
+
+  // 件数: ミッション1件 / 進行予定ミッション1件 / 配達1回
+  const countM = t.match(/ミッション\s*(\d+)\s*件/)
+               || t.match(/配達\s*(\d+)\s*回/)
+               || t.match(/(\d+)\s*件/);
+  if(countM) data.count = parseInt(countM[1]);
+
+  // 時間: RocketNowは案件画面に時間が出ないため0（手動補完）
+  const hourM = t.match(/([\d.]+)\s*h/i) || t.match(/(\d+)\s*分/);
+  if(hourM && hourM[0].includes('分')) data.hours = parseFloat((parseInt(hourM[1])/60).toFixed(2));
+  else if(hourM) data.hours = parseFloat(hourM[1]);
+
+  return data;
+}
+
+function parseScreenshot(text, platform){
+  return platform === 'uber' ? parseUberScreenshot(text) : parseRocketNowScreenshot(text);
+}
+
+// ═══════════════════════════════════
+//  FILE HANDLING — Tesseract.js OCR
+// ═══════════════════════════════════
+function setupDragDrop(){
+  const zone = document.getElementById('upload-zone');
+  zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', ()=> zone.classList.remove('drag'));
+  zone.addEventListener('drop', e=>{ e.preventDefault(); zone.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
+}
+
+let _tesseractLoaded = false;
+function loadTesseract(){
+  return new Promise(resolve=>{
+    if(window.Tesseract){ resolve(true); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.onload  = ()=>{ _tesseractLoaded=true; resolve(true); };
+    s.onerror = ()=>resolve(false);
+    document.head.appendChild(s);
+  });
+}
+
+async function handleFiles(files){
+  if(!files||!files.length) return;
+  const file = files[0];
+  showLoading(`📸 ${platformName(currentPlatform)}のスクリーンショットをOCR解析中...`);
+
+  try {
+    const ok = await loadTesseract();
+    if(!ok || !window.Tesseract) throw new Error('Tesseract load failed');
+
+    const result = await Tesseract.recognize(file, 'jpn+eng', {
+      logger: m=>{
+        if(m.status === 'recognizing text'){
+          document.getElementById('loading-text').textContent =
+            `OCR解析中... ${Math.round(m.progress*100)}%`;
+        }
+      }
+    });
+
+    const rawText = result.data.text;
+    console.log('[OCR RAW TEXT]', rawText);
+
+    const parsed = parseScreenshot(rawText, currentPlatform);
+    hideLoading();
+
+    if(parsed.sales === 0 && parsed.count === 0 && parsed.dist === 0){
+      showToast('⚠️ 数値を読み取れませんでした。手動で修正してください','#ffc107');
+    } else {
+      showToast('📸 OCR解析完了！数値を確認してから保存してください');
+    }
+    showOcrPreview(parsed);
+
+  } catch(err){
+    console.error('[OCR Error]', err);
+    hideLoading();
+    showToast('⚠️ OCR失敗。手動で入力してください','#ffc107');
+    openManualModal();
+  }
+}
+
+function showOcrPreview(data){
+  pendingOcrData = data;
+  document.getElementById('ocr-sales').value  = data.sales;
+  document.getElementById('ocr-count').value  = data.count;
+  document.getElementById('ocr-dist').value   = data.dist;
+  document.getElementById('ocr-hours').value  = data.hours;
+  const isRocket = currentPlatform === 'rocketnow';
+  document.getElementById('ocr-preview-title').textContent =
+    (isRocket ? '🟠 RocketNow' : '🟢 Uber Eats') + ' 解析結果（編集可能）';
+  document.getElementById('ocr-preview').classList.add('show');
+  recalcOcr();
+}
+
+function recalcOcr(){
+  const sales  = parseFloat(document.getElementById('ocr-sales').value)||0;
+  const count  = parseFloat(document.getElementById('ocr-count').value)||0;
+  const dist   = parseFloat(document.getElementById('ocr-dist').value)||0;
+  const hours  = parseFloat(document.getElementById('ocr-hours').value)||0;
+  pendingOcrData = {sales,count,dist,hours};
+  updateHomeLive(sales,count,dist,hours);
+}
+
+function analyzeScreenshot(){
+  if(pendingOcrData){ saveOcrData(); return; }
+  openManualModal();
+}
+
+function saveOcrData(){
+  const {sales,count,dist,hours} = pendingOcrData;
+  if(!sales && !count){ showToast('⚠️ データを入力してください','#ff5252'); return; }
+  const log = buildLog(getTodayKey(), sales, count, dist, hours, currentPlatform);
+  
+  // Add userId if logged in
+  if(currentUser) log.userId = currentUser.uid;
+  
+  const logs = getLogs(); logs.push(log); saveLogs(logs);
+  pendingOcrData = null;
+  document.getElementById('ocr-preview').classList.remove('show');
+  document.getElementById('file-input').value = '';
+  const todayCount = getLogs().filter(l=>l.date===getTodayKey()).length;
+  document.getElementById('analysis-count').textContent = todayCount + '件の解析';
+  updateHomeStats();
+  renderHistory();
+  showToast(`✅ ${platformName(currentPlatform)}のデータを保存しました`);
+  
+  // Sync to cloud if logged in
+  if(currentUser && db){
+    saveLogToCloud(currentUser.uid, log);
+  }
+}
+
+// ═══════════════════════════════════
+//  LOG BUILDER
+// ═══════════════════════════════════
+function buildLog(date, sales, count, dist, hours, platform){
+  return {
+    id: Date.now().toString(),
+    date, sales, count,
+    dist:   parseFloat(dist)||0,
+    hours:  parseFloat(hours)||0,
+    platform: platform || 'uber',
+    timestamp: Date.now(),
+    hourly:  hours>0 ? Math.round(sales/hours) : 0,
+    unit:    count>0 ? Math.round(sales/count) : 0,
+    kmprice: dist>0  ? Math.round(sales/dist)  : 0,
+    speed:   hours>0 ? Math.round(dist/hours*10)/10 : 0
+  };
+}
+
+// ═══════════════════════════════════
+//  HOME STATS
+// ═══════════════════════════════════
+function updateHomeStats(){
+  const today = getTodayKey();
+  const logs  = getLogs().filter(l => l.date === today);
+  // Show all platforms on home (platform badge visible)
+  const sales = logs.reduce((s,l)=>s+l.sales,0);
+  const count = logs.reduce((s,l)=>s+l.count,0);
+  const dist  = logs.reduce((s,l)=>s+l.dist, 0);
+  const hours = logs.reduce((s,l)=>s+l.hours,0);
+  updateHomeLive(sales,count,dist,hours);
+  document.getElementById('analysis-count').textContent =
+    logs.length>0 ? logs.length+'件の解析' : '— 件の解析';
+}
+
+function updateHomeLive(sales,count,dist,hours){
+  document.getElementById('home-sales').textContent = '¥'+sales.toLocaleString('ja-JP');
+  document.getElementById('h-count').textContent    = count + '件';
+  document.getElementById('h-dist').textContent     = dist.toFixed(1)+'km';
+  document.getElementById('h-hours').textContent    = hours.toFixed(2)+'h';
+  document.getElementById('h-hourly').textContent   = hours>0 ? '¥'+Math.round(sales/hours).toLocaleString() : '¥—';
+  document.getElementById('h-kmprice').textContent  = dist>0  ? '¥'+Math.round(sales/dist).toLocaleString()  : '¥—';
+  document.getElementById('h-unit').textContent     = count>0 ? '¥'+Math.round(sales/count).toLocaleString() : '¥—';
+  document.getElementById('h-speed').textContent    = hours>0 ? (dist/hours).toFixed(1) : '—';
+}
+
+// ═══════════════════════════════════
+//  HISTORY
+// ═══════════════════════════════════
+let _historyFilter = 'all';
+function setHistoryFilter(f){
+  _historyFilter = f;
+  ['all','uber','rocket'].forEach(x=>{
+    const el = document.getElementById('hf-'+(x==='rocketnow'?'rocket':x));
+    if(el) el.classList.toggle('active', (x==='rocketnow'?'rocketnow':x)===f || (x==='all'&&f==='all'));
+  });
+  // rerun with correct id mapping
+  document.getElementById('hf-all').classList.toggle('active', f==='all');
+  document.getElementById('hf-uber').classList.toggle('active', f==='uber');
+  document.getElementById('hf-rocket').classList.toggle('active', f==='rocketnow');
+  renderHistory();
+}
+
+function renderHistory(){
+  let logs = [...getLogs()].sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
+  if(_historyFilter !== 'all') logs = logs.filter(l=>(l.platform||'uber')===_historyFilter);
+  const el = document.getElementById('history-list');
+  if(!logs.length){
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">履歴がありません</div><div class="empty-sub">${_historyFilter!=='all'?platformName(_historyFilter)+'の':''}データがまだありません</div></div>`;
+    return;
+  }
+  el.innerHTML = logs.map(l=>`
+    <div class="history-item">
+      <div class="history-left">
+        <div class="history-date">
+          ${fmtDate(l.date)}
+          <span class="badge ${platformBadgeClass(l.platform)}">${platformName(l.platform)}</span>
+        </div>
+        <div class="history-meta">${l.count}件 / ${l.dist}km / ${l.hours}h</div>
+      </div>
+      <div class="history-right">
+        <div class="history-sales">¥${l.sales.toLocaleString()}</div>
+        <div class="history-hourly">時給¥${l.hourly.toLocaleString()}</div>
+      </div>
+      <button class="history-delete" onclick="deleteLog('${l.id}')">削除</button>
+    </div>
+  `).join('');
+}
+
+function deleteLog(id){
+  if(!confirm('この記録を削除しますか？')) return;
+  saveLogs(getLogs().filter(l=>l.id!==id));
+  renderHistory(); renderReport(); updateHomeStats();
+  showToast('🗑 削除しました','#ff5252');
+}
+
+// ═══════════════════════════════════
+//  REPORT
+// ═══════════════════════════════════
+let _reportFilter = 'all';
+function setReportFilter(f){
+  _reportFilter = f;
+  document.getElementById('rf-all').classList.toggle('active', f==='all');
+  document.getElementById('rf-uber').classList.toggle('active', f==='uber');
+  document.getElementById('rf-rocket').classList.toggle('active', f==='rocketnow');
+  renderReport();
+}
+
+function renderReport(){
+  const today = getTodayKey();
+  let logs = getLogs().filter(l=>l.date===today);
+  if(_reportFilter !== 'all') logs = logs.filter(l=>(l.platform||'uber')===_reportFilter);
+
+  if(!logs.length){
+    ['r-count','r-kmprice','r-hourly','r-speed'].forEach(id=>document.getElementById(id).textContent='—');
+    ['cmp-count','cmp-unit','cmp-km','best-count','best-unit','best-km'].forEach(id=>document.getElementById(id).textContent='—');
+    document.getElementById('platform-breakdown').innerHTML='';
+    return;
+  }
+
+  const sales  = logs.reduce((s,l)=>s+l.sales,0);
+  const count  = logs.reduce((s,l)=>s+l.count,0);
+  const dist   = logs.reduce((s,l)=>s+l.dist, 0);
+  const hours  = logs.reduce((s,l)=>s+l.hours,0);
+  const hourly = hours>0 ? Math.round(sales/hours) : 0;
+  const kmprice= dist>0  ? Math.round(sales/dist)  : 0;
+  const speed  = hours>0 ? Math.round(dist/hours*10)/10 : 0;
+  const unit   = count>0 ? Math.round(sales/count) : 0;
+
+  document.getElementById('r-count').textContent   = count;
+  document.getElementById('r-kmprice').textContent = kmprice.toLocaleString();
+  document.getElementById('r-hourly').textContent  = hourly.toLocaleString();
+  document.getElementById('r-speed').textContent   = speed;
+
+  document.getElementById('cmp-count').textContent = count;
+  document.getElementById('cmp-unit').textContent  = unit.toLocaleString();
+  document.getElementById('cmp-km').textContent    = kmprice.toLocaleString();
+
+  // 【自己最高】全履歴から計算（今日だけではなく全期間のベスト）
+  const allLogs  = getLogs();
+  const bestCount  = Math.max(...allLogs.map(l=>l.count),  0);
+  const bestUnit   = Math.max(...allLogs.map(l=>l.unit),   0);
+  const bestKm     = Math.max(...allLogs.map(l=>l.kmprice),0);
+  document.getElementById('best-count').textContent = bestCount || '—';
+  document.getElementById('best-unit').textContent  = bestUnit ? bestUnit.toLocaleString() : '—';
+  document.getElementById('best-km').textContent    = bestKm ? bestKm.toLocaleString() : '—';
+
+  // Platform breakdown (today, both platforms)
+  renderPlatformBreakdown(today);
+}
+
+function renderPlatformBreakdown(today){
+  const allToday = getLogs().filter(l=>l.date===today);
+  const platforms = ['uber','rocketnow'];
+  const el = document.getElementById('platform-breakdown');
+  const cards = platforms.map(p=>{
+    const pl = allToday.filter(l=>(l.platform||'uber')===p);
+    if(!pl.length) return '';
+    const s = pl.reduce((a,l)=>a+l.sales,0);
+    const c = pl.reduce((a,l)=>a+l.count,0);
+    const h = pl.reduce((a,l)=>a+l.hours,0);
+    const hr= h>0?Math.round(s/h):0;
+    return `<div class="pb-card">
+      <div class="pb-header">
+        <div class="pb-title"><span class="badge ${platformBadgeClass(p)}">${platformName(p)}</span></div>
+        <div class="pb-days">${pl.length}記録</div>
+      </div>
+      <div class="pb-sales">¥${s.toLocaleString()}</div>
+      <div class="pb-meta">${c}件 / 時給¥${hr.toLocaleString()}</div>
+    </div>`;
+  }).filter(Boolean);
+  el.innerHTML = cards.length ? cards.join('') : '';
+}
+
+// ═══════════════════════════════════
+//  AI ADVICE
+// ═══════════════════════════════════
+async function getAIAdvice(){
+  const today = getTodayKey();
+  let logs = getLogs().filter(l=>l.date===today);
+  if(_reportFilter!=='all') logs=logs.filter(l=>(l.platform||'uber')===_reportFilter);
+  if(!logs.length){ showToast('⚠️ 今日のデータがありません','#ff5252'); return; }
+
+  const sales  = logs.reduce((s,l)=>s+l.sales,0);
+  const count  = logs.reduce((s,l)=>s+l.count,0);
+  const dist   = logs.reduce((s,l)=>s+l.dist, 0);
+  const hours  = logs.reduce((s,l)=>s+l.hours,0);
+  const hourly = hours>0?Math.round(sales/hours):0;
+  const kmprice= dist>0?Math.round(sales/dist):0;
+  const unit   = count>0?Math.round(sales/count):0;
+  const pName  = _reportFilter==='all'?'フードデリバリー':platformName(_reportFilter);
+
+  document.getElementById('advice-list').innerHTML='';
+  document.getElementById('ai-thinking').classList.add('show');
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:700,
+        messages:[{role:'user',content:`あなたは${pName}配達員のコーチです。以下の本日の成績を分析して、実用的なアドバイスを3〜4個生成してください。
+成績：プラットフォーム=${pName}、売上¥${sales}、件数${count}件、距離${dist}km、稼働時間${hours}h、時給¥${hourly}、距離効率¥${kmprice}/km、件単価¥${unit}
+以下のJSON形式のみで返してください：
+[{"icon":"絵文字","type":"good|warn|tip","text":"アドバイス文（60字以内）"}]`
+        }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content.map(c=>c.text||'').join('');
+    const clean= text.replace(/```json|```/g,'').trim();
+    renderAdvices(JSON.parse(clean));
+  } catch(e) {
+    renderAdvices(generateRuleAdvice(hourly,kmprice,unit,count,_reportFilter));
+  }
+  document.getElementById('ai-thinking').classList.remove('show');
+}
+
+function generateRuleAdvice(hourly,kmprice,unit,count,platform){
+  const a=[];
+  if(hourly>=3000) a.push({icon:'✅',type:'good',text:'時給は良好です！この効率を維持しましょう。'});
+  else a.push({icon:'💡',type:'tip',text:'時給アップには昼・夕方のピーク時間の活用が効果的です。'});
+  if(count<5) a.push({icon:'⚠️',type:'warn',text:'件数を増やしてみましょう。近距離の依頼を優先すると効率UP！'});
+  if(kmprice<150) a.push({icon:'⚠️',type:'warn',text:'距離効率が低めです。近距離の配達を優先し、移動距離を抑えましょう。'});
+  else a.push({icon:'✅',type:'good',text:'距離効率は良好です！引き続き近距離重視で稼ぎましょう。'});
+  if(platform==='rocketnow') a.push({icon:'🟠',type:'tip',text:'RocketNowのブーストタイムを狙うと件単価がさらにUPします。'});
+  else a.push({icon:'🟢',type:'tip',text:'Uber Eatsのプロモーション時間帯を活用すると収入が伸びます。'});
+  return a;
+}
+
+function renderAdvices(advices){
+  const icons={good:'✅',warn:'⚠️',tip:'💡'};
+  document.getElementById('advice-list').innerHTML=advices.map(a=>`
+    <div class="advice-item">
+      <span class="advice-icon">${a.icon||icons[a.type]||'💡'}</span>
+      <span>${a.text}</span>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════
+//  MANUAL INPUT
+// ═══════════════════════════════════
+function openManualModal(){
+  document.getElementById('m-platform').value = currentPlatform;
+  document.getElementById('manual-modal').classList.add('open');
+}
+function closeManualModal(){
+  document.getElementById('manual-modal').classList.remove('open');
+}
+function saveManual(){
+  const date     = document.getElementById('m-date').value;
+  const platform = document.getElementById('m-platform').value;
+  const sales    = parseFloat(document.getElementById('m-sales').value)||0;
+  const count    = parseInt(document.getElementById('m-count').value)||0;
+  const dist     = parseFloat(document.getElementById('m-dist').value)||0;
+  const hours    = parseFloat(document.getElementById('m-hours').value)||0;
+  if(!date||!sales||!count){ showToast('⚠️ 日付・売上・件数は必須です','#ff5252'); return; }
+  const log = buildLog(date,sales,count,dist,hours,platform);
+  
+  // Add userId if logged in
+  if(currentUser) log.userId = currentUser.uid;
+  
+  const logs = getLogs(); logs.push(log); saveLogs(logs);
+  closeManualModal();
+  ['m-sales','m-count','m-dist','m-hours'].forEach(id=>document.getElementById(id).value='');
+  updateHomeStats(); renderHistory(); renderReport();
+  showToast(`✅ ${platformName(platform)}のデータを保存しました`);
+  
+  // Sync to cloud if logged in
+  if(currentUser && db){
+    saveLogToCloud(currentUser.uid, log);
+  }
+}
+
+// ═══════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════
+function switchTab(tab){
+  ['home','history','report','rankings','settings'].forEach(t=>{
+    document.getElementById('page-'+t).classList.toggle('active',t===tab);
+    const nb=document.getElementById('nav-'+t);
+    if(nb) nb.classList.toggle('active',t===tab);
+  });
+  if(tab==='history')  renderHistory();
+  if(tab==='report')   renderReport();
+  if(tab==='rankings') loadRankings(currentRankType);
+}
+
+function toggleAutoSave(){
+  autoSave=!autoSave;
+  document.getElementById('auto-save-toggle').classList.toggle('on',autoSave);
+}
+
+function platformName(p){
+  return p==='rocketnow' ? 'RocketNow' : 'Uber Eats';
+}
+function platformBadgeClass(p){
+  return p==='rocketnow' ? 'badge-rocket' : 'badge-uber';
+}
+function fmtDate(d){
+  const dt=new Date(d+'T00:00:00');
+  const days=['日','月','火','水','木','金','土'];
+  return `${dt.getMonth()+1}/${dt.getDate()}（${days[dt.getDay()]}）`;
+}
+
+function clearAllData(){
+  if(!confirm('すべてのデータを削除しますか？この操作は元に戻せません。')) return;
+  localStorage.removeItem('dc_logs');
+  updateHomeStats(); renderHistory(); renderReport();
+  showToast('🗑 全データを削除しました','#ff5252');
+}
+
+function showLoading(msg='解析中...'){
+  document.getElementById('loading-text').textContent=msg;
+  document.getElementById('loading').classList.add('show');
+}
+function hideLoading(){
+  document.getElementById('loading').classList.remove('show');
+}
+function showToast(msg,color='var(--accent)'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.background=color;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+// Close modal on backdrop tap (DOM ready後に実行)
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const modal = document.getElementById('manual-modal');
+    if(modal){
+      modal.addEventListener('click', function(e){
+        if(e.target===this) closeManualModal();
+      });
+    }
+  });
+} else {
+  const modal = document.getElementById('manual-modal');
+  if(modal){
+    modal.addEventListener('click', function(e){
+      if(e.target===this) closeManualModal();
+    });
+  }
+}
+</script>
+</body>
+</html>
+
+
+これを貼りたい
