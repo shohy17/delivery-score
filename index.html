@@ -116,8 +116,6 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .toggle.on{background:var(--accent);}
 .toggle-thumb{position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:left .2s;}
 .toggle.on .toggle-thumb{left:23px;}
-.shortcut-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;font-size:14px;color:var(--text2);}
-.shortcut-btn{display:flex;align-items:center;gap:6px;color:var(--accent);font-size:13px;font-weight:700;cursor:pointer;}
 
 .upload-zone{border:1.5px dashed var(--border2);border-radius:var(--r);padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;margin:10px 0;position:relative;overflow:hidden;}
 .upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--accent-dim);}
@@ -150,7 +148,6 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 /* ── HISTORY ── */
 .page-header{padding:16px 16px 12px;font-size:18px;font-weight:900;border-bottom:1px solid var(--border);}
 .history-item{padding:13px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
-.history-dot-wrap{flex-shrink:0;}
 .history-left{flex:1;min-width:0;}
 .history-date{font-size:13px;font-weight:700;margin-bottom:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .history-meta{font-size:11px;color:var(--text3);}
@@ -559,11 +556,11 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
       </div>
     </div>
 
-    <button class="analyze-btn" id="analyze-btn" onclick="analyzeScreenshot()">
-      <span>⊡</span> スクリーンショットを解析
+    <button class="analyze-btn" id="analyze-btn" onclick="saveOcrDataOrOpenManual()">
+      <span>⊡</span> データを保存
     </button>
     <div style="text-align:center;font-size:10px;color:var(--text3);padding-bottom:10px;">
-      配達単価チェッカー v5.2 — OCR powered by Tesseract.js
+      配達単価チェッカー v5.3 — OCR powered by Tesseract.js
     </div>
   </div>
 </div>
@@ -651,7 +648,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <!-- ===== RANKINGS ===== -->
 <div id="page-rankings" class="page">
   <div class="page-header">🏆 ランキング</div>
-  
+ 
   <!-- Rank type tabs -->
   <div class="rank-tabs">
     <button class="rank-tab active" id="rt-earnings"    onclick="setRankType('earnings')">累計売上</button>
@@ -678,7 +675,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   </div>
   <div class="settings-section">
     <div class="settings-section-title">アカウント</div>
-    
+   
     <!-- Logged Out State -->
     <div class="auth-logged-out" id="auth-logged-out">
       <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6;">
@@ -699,7 +696,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
           <div class="account-email" id="user-email">—</div>
         </div>
       </div>
-      
+     
       <!-- 累計統計 -->
       <div class="user-stats-grid" id="user-stats-grid">
         <div class="user-stat-card">
@@ -746,7 +743,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   </div>
   <div class="settings-section">
     <div class="settings-section-title">アプリ情報</div>
-    <div class="info-row"><span class="info-label">バージョン</span><span class="info-value">v5.2</span></div>
+    <div class="info-row"><span class="info-label">バージョン</span><span class="info-value">v5.3</span></div>
     <div class="info-row"><span class="info-label">OCRエンジン</span><span class="info-value">Tesseract.js</span></div>
     <div class="info-row"><span class="info-label">AI</span><span class="info-value">Claude LLM</span></div>
   </div>
@@ -806,434 +803,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <div class="loading-overlay" id="loading"><div class="spinner"></div><div class="loading-text" id="loading-text">解析中...</div></div>
 <div class="toast" id="toast"></div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 // ═══════════════════════════════════
-//  FIREBASE CONFIGURATION
-// ═══════════════════════════════════
-// ⚠️ 本番環境では実際のFirebase Configに置き換えてください
-const firebaseConfig = {
-  apiKey: "AIzaSyDEMO_KEY_REPLACE_THIS",
-  authDomain: "delivery-checker-demo.firebaseapp.com",
-  projectId: "delivery-checker-demo",
-  storageBucket: "delivery-checker-demo.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef"
-};
-
-let app = null;
-let auth = null;
-let db = null;
-let currentUser = null;
-let currentRankType = 'earnings';
-let firebaseEnabled = false;
-
-// Firebase初期化（SDKロード確認付き）
-function initFirebase(){
-  // Firebase SDKが読み込まれているか確認
-  if(typeof firebase === 'undefined'){
-    console.warn('[Firebase] SDK not loaded - app will run in offline mode (localStorage only)');
-    firebaseEnabled = false;
-    return false;
-  }
-  
-  // デモ設定チェック（本番では実際の値に置き換える）
-  if(firebaseConfig.apiKey === "AIzaSyDEMO_KEY_REPLACE_THIS"){
-    console.warn('[Firebase] Demo config detected - app will run in offline mode. Replace firebaseConfig with real values to enable cloud features.');
-    firebaseEnabled = false;
-    return false;
-  }
-  
-  try {
-    // Firebase初期化
-    app = firebase.initializeApp(firebaseConfig);
-    auth = firebase.auth();
-    db = firebase.firestore();
-    firebaseEnabled = true;
-    console.log('[Firebase] ✅ Initialized successfully');
-    
-    // Auth状態変更リスナー
-    auth.onAuthStateChanged(user => {
-      currentUser = user;
-      updateAuthUI(user);
-      if(user){
-        console.log('[Auth] ✅ User logged in:', user.email);
-        loadUserStats(user.uid);
-        syncLocalToCloud(user.uid);
-      } else {
-        console.log('[Auth] ℹ️  No user logged in');
-      }
-    });
-    
-    return true;
-  } catch(err){
-    console.error('[Firebase] ❌ Initialization error:', err);
-    firebaseEnabled = false;
-    
-    // エラー詳細をユーザーに表示（開発時のみ）
-    if(err.code === 'auth/invalid-api-key'){
-      console.error('[Firebase] Invalid API key. Please check your firebaseConfig.');
-    } else if(err.code === 'auth/app-deleted'){
-      console.error('[Firebase] Firebase app has been deleted.');
-    }
-    
-    return false;
-  }
-}
-
-// DOMContentLoaded後に確実に初期化
-if(document.readyState === 'loading'){
-  document.addEventListener('DOMContentLoaded', ()=>{
-    setTimeout(initFirebase, 100); // SDKロード完了を待つ
-  });
-} else {
-  // すでにDOMロード済みの場合
-  setTimeout(initFirebase, 100);
-}
-
-// ═══════════════════════════════════
-//  AUTH FUNCTIONS
-// ═══════════════════════════════════
-async function loginWithGoogle(){
-  if(!firebaseEnabled || !auth){ 
-    showToast('⚠️ Firebase未設定です。オフラインモードで動作しています。','#ffc107'); 
-    return; 
-  }
-  
-  try {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    const result = await auth.signInWithPopup(provider);
-    showToast('✅ ログインしました');
-    console.log('[Auth] Login success:', result.user.email);
-  } catch(err){
-    console.error('[Login Error]', err);
-    
-    // エラー種類別のメッセージ
-    if(err.code === 'auth/popup-blocked'){
-      showToast('⚠️ ポップアップがブロックされました。ブラウザ設定を確認してください。','#ff5252');
-    } else if(err.code === 'auth/popup-closed-by-user'){
-      showToast('ℹ️  ログインがキャンセルされました','#ffc107');
-    } else if(err.code === 'auth/network-request-failed'){
-      showToast('⚠️ ネットワークエラー。接続を確認してください。','#ff5252');
-    } else {
-      showToast('⚠️ ログイン失敗: ' + (err.message || 'Unknown error'),'#ff5252');
-    }
-  }
-}
-
-async function logout(){
-  if(!firebaseEnabled || !auth) return;
-  
-  try {
-    await auth.signOut();
-    showToast('👋 ログアウトしました');
-    console.log('[Auth] Logout success');
-    
-    // UI reset
-    document.getElementById('total-earnings').textContent = '¥—';
-    document.getElementById('total-deliveries').textContent = '—件';
-    document.getElementById('total-distance').textContent = '—km';
-    document.getElementById('avg-hourly').textContent = '¥—';
-  } catch(err){
-    console.error('[Logout Error]', err);
-    showToast('⚠️ ログアウト失敗','#ff5252');
-  }
-}
-
-function updateAuthUI(user){
-  const loggedIn  = document.getElementById('auth-logged-in');
-  const loggedOut = document.getElementById('auth-logged-out');
-  if(user){
-    loggedOut.classList.remove('show');
-    loggedIn.classList.add('show');
-    document.getElementById('user-name').textContent = user.displayName || 'ユーザー';
-    document.getElementById('user-email').textContent = user.email || '';
-    const photoURL = user.photoURL;
-    if(photoURL){
-      document.getElementById('user-avatar').style.backgroundImage = `url(${photoURL})`;
-      document.getElementById('user-avatar').style.backgroundSize = 'cover';
-      document.getElementById('user-avatar').textContent = '';
-    }
-  } else {
-    loggedIn.classList.remove('show');
-    loggedOut.classList.add('show');
-  }
-}
-
-// ═══════════════════════════════════
-//  DATA SYNC & USER STATS
-// ═══════════════════════════════════
-async function syncLocalToCloud(uid){
-  if(!firebaseEnabled || !db){
-    console.log('[Sync] Firebase disabled - skipping cloud sync');
-    return;
-  }
-  
-  const logs = getLogs();
-  if(!logs.length) return;
-  
-  try {
-    const batch = db.batch();
-    let syncCount = 0;
-    
-    logs.forEach(log => {
-      if(!log.userId){ // まだクラウドに上げてないログ
-        const docRef = db.collection('delivery_logs').doc();
-        batch.set(docRef, {
-          userId: uid,
-          date: log.date,
-          earnings: log.sales,
-          deliveries: log.count,
-          distance: log.dist,
-          hours: log.hours,
-          platform: log.platform || 'uber',
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          area: null
-        });
-        log.userId = uid; // ローカルにもマーク
-        syncCount++;
-      }
-    });
-    
-    if(syncCount > 0){
-      await batch.commit();
-      saveLogs(logs); // userId付きで保存
-      await updateUserStats(uid);
-      console.log(`[Sync] ✅ ${syncCount} logs synced to cloud`);
-    } else {
-      console.log('[Sync] ℹ️  No new logs to sync');
-    }
-  } catch(err){
-    console.error('[Sync Error]', err);
-    showToast('⚠️ クラウド同期に失敗しました','#ffc107');
-  }
-}
-
-async function saveLogToCloud(uid, log){
-  if(!firebaseEnabled || !db){
-    console.log('[Cloud] Firebase disabled - log saved locally only');
-    return;
-  }
-  
-  try {
-    await db.collection('delivery_logs').add({
-      userId: uid,
-      date: log.date,
-      earnings: log.sales,
-      deliveries: log.count,
-      distance: log.dist,
-      hours: log.hours,
-      platform: log.platform || 'uber',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      area: null
-    });
-    await updateUserStats(uid);
-    console.log('[Cloud] ✅ Log saved to cloud');
-  } catch(err){
-    console.error('[Cloud Save Error]', err);
-  }
-}
-
-async function updateUserStats(uid){
-  if(!firebaseEnabled || !db) return;
-  
-  try {
-    const snapshot = await db.collection('delivery_logs').where('userId','==',uid).get();
-    let totalEarnings=0, totalDeliveries=0, totalDistance=0, totalHours=0;
-    let bestCount=0, bestUnit=0, bestEfficiency=0, bestHourly=0;
-    
-    snapshot.forEach(doc=>{
-      const d = doc.data();
-      totalEarnings += d.earnings||0;
-      totalDeliveries += d.deliveries||0;
-      totalDistance += d.distance||0;
-      totalHours += d.hours||0;
-      
-      if(d.deliveries > bestCount) bestCount = d.deliveries;
-      const unit = d.deliveries>0 ? Math.round(d.earnings/d.deliveries) : 0;
-      if(unit > bestUnit) bestUnit = unit;
-      const eff = d.distance>0 ? Math.round(d.earnings/d.distance) : 0;
-      if(eff > bestEfficiency) bestEfficiency = eff;
-      const hourly = d.hours>0 ? Math.round(d.earnings/d.hours) : 0;
-      if(hourly > bestHourly) bestHourly = hourly;
-    });
-    
-    const avgUnit = totalDeliveries>0 ? Math.round(totalEarnings/totalDeliveries) : 0;
-    const avgHourly = totalHours>0 ? Math.round(totalEarnings/totalHours) : 0;
-    const avgEfficiency = totalDistance>0 ? Math.round(totalEarnings/totalDistance) : 0;
-    
-    // Save user_stats
-    await db.collection('user_stats').doc(uid).set({
-      userId: uid,
-      totalEarnings,
-      totalDeliveries,
-      totalDistance,
-      avgUnitPrice: avgUnit,
-      avgHourly,
-      avgEfficiency,
-      bestHourly,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
-    // Save user_best_stats
-    await db.collection('user_best_stats').doc(uid).set({
-      userId: uid,
-      bestCount,
-      bestUnitPrice: bestUnit,
-      bestEfficiency,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
-    // Update UI
-    const earningsEl = document.getElementById('total-earnings');
-    const deliveriesEl = document.getElementById('total-deliveries');
-    const distanceEl = document.getElementById('total-distance');
-    const hourlyEl = document.getElementById('avg-hourly');
-    
-    if(earningsEl) earningsEl.textContent = '¥'+totalEarnings.toLocaleString();
-    if(deliveriesEl) deliveriesEl.textContent = totalDeliveries+'件';
-    if(distanceEl) distanceEl.textContent = totalDistance.toFixed(1)+'km';
-    if(hourlyEl) hourlyEl.textContent = '¥'+avgHourly.toLocaleString();
-    
-    // Update best comparison in report
-    const bestCountEl = document.getElementById('best-count');
-    const bestUnitEl = document.getElementById('best-unit');
-    const bestKmEl = document.getElementById('best-km');
-    
-    if(bestCountEl) bestCountEl.textContent = bestCount;
-    if(bestUnitEl) bestUnitEl.textContent = bestUnit.toLocaleString();
-    if(bestKmEl) bestKmEl.textContent = bestEfficiency.toLocaleString();
-    
-    console.log('[Stats] ✅ Updated');
-  } catch(err){
-    console.error('[Stats Update Error]', err);
-  }
-}
-
-async function loadUserStats(uid){
-  if(!firebaseEnabled || !db) return;
-  
-  try {
-    const doc = await db.collection('user_stats').doc(uid).get();
-    if(doc.exists){
-      const d = doc.data();
-      document.getElementById('total-earnings').textContent = '¥'+(d.totalEarnings||0).toLocaleString();
-      document.getElementById('total-deliveries').textContent = (d.totalDeliveries||0)+'件';
-      document.getElementById('total-distance').textContent = (d.totalDistance||0).toFixed(1)+'km';
-      document.getElementById('avg-hourly').textContent = '¥'+(d.avgHourly||0).toLocaleString();
-    }
-    
-    const bestDoc = await db.collection('user_best_stats').doc(uid).get();
-    if(bestDoc.exists){
-      const b = bestDoc.data();
-      document.getElementById('best-count').textContent = b.bestCount||0;
-      document.getElementById('best-unit').textContent = (b.bestUnitPrice||0).toLocaleString();
-      document.getElementById('best-km').textContent = (b.bestEfficiency||0).toLocaleString();
-    }
-  } catch(err){
-    console.error('[Load Stats Error]', err);
-  }
-}
-
-// ═══════════════════════════════════
-//  RANKINGS
-// ═══════════════════════════════════
-function setRankType(type){
-  currentRankType = type;
-  ['earnings','deliveries','hourly','efficiency'].forEach(t=>{
-    document.getElementById('rt-'+t).classList.toggle('active', t===type);
-  });
-  loadRankings(type);
-}
-
-async function loadRankings(type){
-  const el = document.getElementById('rank-list');
-  
-  if(!currentUser){
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🔐</div><div class="empty-text">ログインが必要です</div><div class="empty-sub">設定ページからGoogleログインしてください</div></div>`;
-    return;
-  }
-  
-  if(!firebaseEnabled || !db){ 
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Firebase未設定</div><div class="empty-sub">オフラインモードで動作中</div></div>`; 
-    return; 
-  }
-  
-  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--text3)">読み込み中...</div>';
-  
-  try {
-    const fieldMap = {
-      earnings: 'totalEarnings',
-      deliveries: 'totalDeliveries',
-      hourly: 'avgHourly',
-      efficiency: 'avgEfficiency'
-    };
-    const field = fieldMap[type];
-    const snapshot = await db.collection('user_stats').orderBy(field, 'desc').limit(100).get();
-    
-    if(snapshot.empty){
-      el.innerHTML=`<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">ランキングデータがありません</div></div>`;
-      return;
-    }
-    
-    const labelMap = {
-      earnings: {suffix:'円', format: v=>'¥'+v.toLocaleString()},
-      deliveries: {suffix:'件', format: v=>v.toLocaleString()+'件'},
-      hourly: {suffix:'円/h', format: v=>'¥'+v.toLocaleString()},
-      efficiency: {suffix:'円/km', format: v=>'¥'+v.toLocaleString()}
-    };
-    const fmt = labelMap[type];
-    
-    let html = '';
-    let rank = 1;
-    snapshot.forEach(doc=>{
-      const d = doc.data();
-      const val = d[field]||0;
-      const isMe = doc.id === currentUser.uid;
-      const posClass = rank===1 ? 'top1' : rank===2 ? 'top2' : rank===3 ? 'top3' : '';
-      
-      html += `<div class="rank-item" style="${isMe?'border-color:var(--accent);background:rgba(0,230,118,0.05);':''}">
-        <div class="rank-pos ${posClass}">${rank}</div>
-        <div class="rank-user">
-          <div class="rank-name">${isMe?'あなた':'ユーザー'+rank}${isMe?' 🎯':''}</div>
-          <div class="rank-area">—</div>
-        </div>
-        <div class="rank-stat">
-          <div class="rank-val">${fmt.format(val)}</div>
-          <div class="rank-label">${fmt.suffix}</div>
-        </div>
-      </div>`;
-      rank++;
-    });
-    el.innerHTML = html;
-  } catch(err){
-    console.error('[Rankings Error]', err);
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">読み込みエラー</div></div>`;
-  }
-}
-
-// ═══════════════════════════════════
-//  INCOME SUPPORT LINKS (定数 — 差し替えはここだけ)
-// ═══════════════════════════════════
-const INCOME_LINKS = {
-  rocketNow:    'https://rocketnowdriver.app.link/W0BUMKWXP0b',
-  uber:         'https://www.uber.com/signup/drive/deliver/?invite_code=mqgntmf',
-  tipsNyafu:    'https://tqv.jp/u/hukugyootaku/a/0fFlxtwI/BaID7R6d',
-  tipsKumasanpo:'https://tqv.jp/u/kumasanpou/a/oeHdWEnj/BaID7R6d',
-};
-
-function trackIncomeCta(type){
-  // クリック計測（将来 GA / Pixel 等に差し替え可能）
-  const labels = {
-    rocketnow:       'RocketNow登録',
-    uber:            'Uber Eats登録',
-    tips_nyafu:      '副業Tips（にゃふ〜）',
-    tips_kumasanpo:  '副業Tips（くまさんぽ）',
-  };
-  console.log('[income_support_click]', { type, label: labels[type]||type, ts: new Date().toISOString() });
-}
-
-// ═══════════════════════════════════
-//  STATE
+//  STATE & STORAGE
 // ═══════════════════════════════════
 let currentPlatform = localStorage.getItem('dc_platform') || 'uber';
 let autoSave        = false;
@@ -1241,9 +813,6 @@ let pendingOcrData  = null;
 let historyFilter   = 'all';
 let reportFilter    = 'all';
 
-// ═══════════════════════════════════
-//  STORAGE
-// ═══════════════════════════════════
 function getLogs(){ return JSON.parse(localStorage.getItem('dc_logs')||'[]'); }
 function saveLogs(l){ localStorage.setItem('dc_logs', JSON.stringify(l)); }
 function getTodayKey(){ return new Date().toISOString().slice(0,10); }
@@ -1251,31 +820,23 @@ function getTodayKey(){ return new Date().toISOString().slice(0,10); }
 // ═══════════════════════════════════
 //  INIT
 // ═══════════════════════════════════
-// ═══════════════════════════════════
-//  INIT - DOM Ready後に実行
-// ═══════════════════════════════════
 function init(){
   try {
     const dateInput = document.getElementById('m-date');
     if(dateInput) dateInput.value = getTodayKey();
-    
+   
     applyPlatformUI(currentPlatform);
     updateHomeStats();
     renderHistory();
     renderReport();
     setupDragDrop();
-    
-    // デフォルトでログアウト状態を表示
-    const loggedOut = document.getElementById('auth-logged-out');
-    if(loggedOut) loggedOut.classList.add('show');
-    
+   
     console.log('[App] ✅ Initialized successfully');
   } catch(err){
     console.error('[App Init Error]', err);
   }
 }
 
-// DOMロード完了後に初期化
 if(document.readyState === 'loading'){
   document.addEventListener('DOMContentLoaded', init);
 } else {
@@ -1296,18 +857,15 @@ function applyPlatformUI(p){
   const isUber   = p === 'uber';
   const isRocket = p === 'rocketnow';
 
-  // toggle buttons
   const ub = document.getElementById('pb-uber');
   const rb = document.getElementById('pb-rocket');
   ub.className = 'platform-btn' + (isUber   ? ' active-uber'   : '');
   rb.className = 'platform-btn' + (isRocket ? ' active-rocket' : '');
 
-  // sales card border
   const card = document.getElementById('home-sales-card');
   card.classList.toggle('platform-uber',   isUber);
   card.classList.toggle('platform-rocket', isRocket);
 
-  // OCR hint
   const hint = document.getElementById('ocr-hint');
   if(isUber){
     hint.className = 'ocr-platform-hint hint-uber';
@@ -1319,66 +877,38 @@ function applyPlatformUI(p){
 }
 
 // ═══════════════════════════════════
-//  OCR PARSING (platform-specific)
+//  OCR PARSING
 // ═══════════════════════════════════
-
-// Uber Eats レイアウト例:
-//   配達(2)  ← 件数
-//   ¥2,488   ← 売上
-//   合計 46 分 (14.3 km)  ← 時間・距離
 function parseUberScreenshot(t){
   const data = { sales:0, count:0, dist:0, hours:0 };
-
-  // 売上: ¥2,488 / ¥ 2488 など
   const salesM = t.match(/[¥￥]\s*([\d,，]+)/);
   if(salesM) data.sales = parseInt(salesM[1].replace(/[,，]/g,''));
-
-  // 件数: 配達(2) / 配達 (2) / 2件
   const countM = t.match(/配達[^\d]*(\d+)/) || t.match(/(\d+)\s*件/);
   if(countM) data.count = parseInt(countM[1]);
-
-  // 距離: 14.3 km / 14.3km
   const distM = t.match(/([\d.]+)\s*km/i);
   if(distM) data.dist = parseFloat(distM[1]);
-
-  // 時間: 46 分 / 46分 → hours  or  1.5h / 1:30
   const minM = t.match(/(\d+)\s*分/);
   const hourM = t.match(/([\d.]+)\s*h/i);
   const colonM = t.match(/(\d+):(\d+)/);
   if(minM)        data.hours = parseFloat((parseInt(minM[1])/60).toFixed(2));
   else if(hourM)  data.hours = parseFloat(hourM[1]);
   else if(colonM) data.hours = parseFloat((parseInt(colonM[1]) + parseInt(colonM[2])/60).toFixed(2));
-
   return data;
 }
 
-// RocketNow レイアウト例:
-//   871円  ← 売上 (「円」表記、¥なし)
-//   配達距離6.5km  ← 距離
-//   ミッション1件 / 進行予定ミッション1件  ← 件数
-//   時間は画面に出ないことが多い → 0のまま手動入力
 function parseRocketNowScreenshot(t){
   const data = { sales:0, count:0, dist:0, hours:0 };
-
-  // 売上: 871円 / ¥871 / 1,234円
   const salesM = t.match(/([\d,，]+)\s*円/) || t.match(/[¥￥]\s*([\d,，]+)/);
   if(salesM) data.sales = parseInt(salesM[1].replace(/[,，]/g,''));
-
-  // 距離: 配達距離6.5km / 6.5km
   const distM = t.match(/配達距離\s*([\d.]+)\s*km/i) || t.match(/([\d.]+)\s*km/i);
   if(distM) data.dist = parseFloat(distM[1]);
-
-  // 件数: ミッション1件 / 進行予定ミッション1件 / 配達1回
   const countM = t.match(/ミッション\s*(\d+)\s*件/)
                || t.match(/配達\s*(\d+)\s*回/)
                || t.match(/(\d+)\s*件/);
   if(countM) data.count = parseInt(countM[1]);
-
-  // 時間: RocketNowは案件画面に時間が出ないため0（手動補完）
   const hourM = t.match(/([\d.]+)\s*h/i) || t.match(/(\d+)\s*分/);
   if(hourM && hourM[0].includes('分')) data.hours = parseFloat((parseInt(hourM[1])/60).toFixed(2));
   else if(hourM) data.hours = parseFloat(hourM[1]);
-
   return data;
 }
 
@@ -1387,7 +917,7 @@ function parseScreenshot(text, platform){
 }
 
 // ═══════════════════════════════════
-//  FILE HANDLING — Tesseract.js OCR
+//  FILE HANDLING
 // ═══════════════════════════════════
 function setupDragDrop(){
   const zone = document.getElementById('upload-zone');
@@ -1396,13 +926,12 @@ function setupDragDrop(){
   zone.addEventListener('drop', e=>{ e.preventDefault(); zone.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
 }
 
-let _tesseractLoaded = false;
 function loadTesseract(){
   return new Promise(resolve=>{
     if(window.Tesseract){ resolve(true); return; }
     const s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-    s.onload  = ()=>{ _tesseractLoaded=true; resolve(true); };
+    s.onload  = ()=>resolve(true);
     s.onerror = ()=>resolve(false);
     document.head.appendChild(s);
   });
@@ -1469,64 +998,19 @@ function recalcOcr(){
   updateHomeLive(sales,count,dist,hours);
 }
 
-async function analyzeScreenshot() {
-const fileInput = document.getElementById("file-input");
-const file = fileInput.files[0];
-
-if (!file) {
-showToast("⚠ スクショを選択してください");
-return;
-}
-
-showToast("📸 画像を軽量化中...");
-
-// 🔥 画像を軽量化（ここが超重要）
-const img = new Image();
-const reader = new FileReader();
-
-reader.onload = function (e) {
-img.src = e.target.result;
-};
-
-reader.readAsDataURL(file);
-
-img.onload = async function () {
-const canvas = document.createElement("canvas");
-const ctx = canvas.getContext("2d");
-
-const MAX_WIDTH = 1000;
-const scale = MAX_WIDTH / img.width;
-
-canvas.width = MAX_WIDTH;
-canvas.height = img.height * scale;
-
-ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-showToast("🔍 OCR解析中...");
-
-const result = await Tesseract.recognize(
-canvas,
-"jpn",
-{ logger: m => console.log(m) }
-);
-
-const text = result.data.text;
-
-console.log(text);
-
-extractUberData(text);
-};
-}
+function saveOcrDataOrOpenManual(){
+  if(pendingOcrData){
+    saveOcrData();
+  } else {
+    openManualModal();
+  }
 }
 
 function saveOcrData(){
   const {sales,count,dist,hours} = pendingOcrData;
   if(!sales && !count){ showToast('⚠️ データを入力してください','#ff5252'); return; }
   const log = buildLog(getTodayKey(), sales, count, dist, hours, currentPlatform);
-  
-  // Add userId if logged in
-  if(currentUser) log.userId = currentUser.uid;
-  
+ 
   const logs = getLogs(); logs.push(log); saveLogs(logs);
   pendingOcrData = null;
   document.getElementById('ocr-preview').classList.remove('show');
@@ -1536,11 +1020,6 @@ function saveOcrData(){
   updateHomeStats();
   renderHistory();
   showToast(`✅ ${platformName(currentPlatform)}のデータを保存しました`);
-  
-  // Sync to cloud if logged in
-  if(currentUser && db){
-    saveLogToCloud(currentUser.uid, log);
-  }
 }
 
 // ═══════════════════════════════════
@@ -1567,7 +1046,6 @@ function buildLog(date, sales, count, dist, hours, platform){
 function updateHomeStats(){
   const today = getTodayKey();
   const logs  = getLogs().filter(l => l.date === today);
-  // Show all platforms on home (platform badge visible)
   const sales = logs.reduce((s,l)=>s+l.sales,0);
   const count = logs.reduce((s,l)=>s+l.count,0);
   const dist  = logs.reduce((s,l)=>s+l.dist, 0);
@@ -1594,11 +1072,6 @@ function updateHomeLive(sales,count,dist,hours){
 let _historyFilter = 'all';
 function setHistoryFilter(f){
   _historyFilter = f;
-  ['all','uber','rocket'].forEach(x=>{
-    const el = document.getElementById('hf-'+(x==='rocketnow'?'rocket':x));
-    if(el) el.classList.toggle('active', (x==='rocketnow'?'rocketnow':x)===f || (x==='all'&&f==='all'));
-  });
-  // rerun with correct id mapping
   document.getElementById('hf-all').classList.toggle('active', f==='all');
   document.getElementById('hf-uber').classList.toggle('active', f==='uber');
   document.getElementById('hf-rocket').classList.toggle('active', f==='rocketnow');
@@ -1680,7 +1153,6 @@ function renderReport(){
   document.getElementById('cmp-unit').textContent  = unit.toLocaleString();
   document.getElementById('cmp-km').textContent    = kmprice.toLocaleString();
 
-  // 【自己最高】全履歴から計算（今日だけではなく全期間のベスト）
   const allLogs  = getLogs();
   const bestCount  = Math.max(...allLogs.map(l=>l.count),  0);
   const bestUnit   = Math.max(...allLogs.map(l=>l.unit),   0);
@@ -1689,7 +1161,6 @@ function renderReport(){
   document.getElementById('best-unit').textContent  = bestUnit ? bestUnit.toLocaleString() : '—';
   document.getElementById('best-km').textContent    = bestKm ? bestKm.toLocaleString() : '—';
 
-  // Platform breakdown (today, both platforms)
   renderPlatformBreakdown(today);
 }
 
@@ -1801,24 +1272,16 @@ function saveManual(){
   const hours    = parseFloat(document.getElementById('m-hours').value)||0;
   if(!date||!sales||!count){ showToast('⚠️ 日付・売上・件数は必須です','#ff5252'); return; }
   const log = buildLog(date,sales,count,dist,hours,platform);
-  
-  // Add userId if logged in
-  if(currentUser) log.userId = currentUser.uid;
-  
+ 
   const logs = getLogs(); logs.push(log); saveLogs(logs);
   closeManualModal();
   ['m-sales','m-count','m-dist','m-hours'].forEach(id=>document.getElementById(id).value='');
   updateHomeStats(); renderHistory(); renderReport();
   showToast(`✅ ${platformName(platform)}のデータを保存しました`);
-  
-  // Sync to cloud if logged in
-  if(currentUser && db){
-    saveLogToCloud(currentUser.uid, log);
-  }
 }
 
 // ═══════════════════════════════════
-//  UTILS
+//  UTILS & UI
 // ═══════════════════════════════════
 function switchTab(tab){
   ['home','history','report','rankings','settings'].forEach(t=>{
@@ -1828,7 +1291,6 @@ function switchTab(tab){
   });
   if(tab==='history')  renderHistory();
   if(tab==='report')   renderReport();
-  if(tab==='rankings') loadRankings(currentRankType);
 }
 
 function toggleAutoSave(){
@@ -1846,6 +1308,16 @@ function fmtDate(d){
   const dt=new Date(d+'T00:00:00');
   const days=['日','月','火','水','木','金','土'];
   return `${dt.getMonth()+1}/${dt.getDate()}（${days[dt.getDay()]}）`;
+}
+
+function trackIncomeCta(type){
+  const labels = {
+    rocketnow:       'RocketNow登録',
+    uber:            'Uber Eats登録',
+    tips_nyafu:      '副業Tips（にゃふ〜）',
+    tips_kumasanpo:  '副業Tips（くまさんぽ）',
+  };
+  console.log('[income_support_click]', { type, label: labels[type]||type, ts: new Date().toISOString() });
 }
 
 function clearAllData(){
@@ -1869,71 +1341,10 @@ function showToast(msg,color='var(--accent)'){
   setTimeout(()=>t.classList.remove('show'),2400);
 }
 
-// Close modal on backdrop tap (DOM ready後に実行)
-if(document.readyState === 'loading'){
-  document.addEventListener('DOMContentLoaded', ()=>{
-    const modal = document.getElementById('manual-modal');
-    if(modal){
-      modal.addEventListener('click', function(e){
-        if(e.target===this) closeManualModal();
-      });
-    }
-  });
-} else {
-  const modal = document.getElementById('manual-modal');
-  if(modal){
-    modal.addEventListener('click', function(e){
-      if(e.target===this) closeManualModal();
-    })
-  }
-}/* ====== 🔥 iPhone高速化 + 画像軽量化処理 ====== */
-
-async function preprocessImage(file) {
-return new Promise((resolve) => {
-const img = new Image();
-const reader = new FileReader();
-
-reader.onload = (e) => {
-img.src = e.target.result;
-};
-
-img.onload = () => {
-const canvas = document.createElement("canvas");
-const ctx = canvas.getContext("2d");
-
-// 最大幅を1000pxに制限（iPhone最適）
-const MAX_WIDTH = 1000;
-let scale = Math.min(1, MAX_WIDTH / img.width);
-
-canvas.width = img.width * scale;
-canvas.height = img.height * scale;
-
-ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-// コントラスト少し上げる（OCR精度UP）
-const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-const data = imageData.data;
-
-for (let i = 0; i < data.length; i += 4) {
-let avg = (data[i] + data[i+1] + data[i+2]) / 3;
-avg = avg > 140 ? 255 : 0; // 2値化（軽量＆精度UP）
-data[i] = data[i+1] = data[i+2] = avg;
-}
-
-ctx.putImageData(imageData, 0, 0);
-
-canvas.toBlob((blob) => {
-resolve(blob);
-}, "image/jpeg", 0.7); // 圧縮率
-};
-
-reader.readAsDataURL(file);
-});
-}
-
+// Stub functions for ranking/auth (not used in offline version)
+function loginWithGoogle(){ showToast('⚠️ Firebase未設定です','#ffc107'); }
+function logout(){}
+function setRankType(){}
 </script>
 </body>
 </html>
-
-
-
