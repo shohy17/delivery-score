@@ -342,6 +342,26 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 
 @media(min-width:400px){.sales-amount{font-size:44px;}}
 
+/* ── 3-STEP LOADING ── */
+.loading-steps{display:flex;gap:10px;margin-top:8px;}
+.step-dot{width:8px;height:8px;border-radius:50%;background:var(--border2);transition:all .3s;}
+.step-dot.active{background:var(--accent);box-shadow:0 0 8px var(--accent);}
+.step-dot.done{background:var(--accent2);}
+.loading-progress-bar{width:160px;height:4px;background:var(--border2);border-radius:2px;margin-top:8px;overflow:hidden;}
+.loading-progress-fill{height:100%;background:var(--accent);transition:width .4s;width:0;}
+
+/* ── CONFIDENCE BADGE ── */
+.conf-badge{display:inline-flex;align-items:center;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:700;margin-left:4px;vertical-align:middle;}
+.conf-badge.high{background:rgba(0,230,118,0.15);color:var(--accent);border:1px solid rgba(0,230,118,0.3);}
+.conf-badge.mid{background:rgba(255,193,7,0.15);color:var(--yellow);border:1px solid rgba(255,193,7,0.3);}
+.conf-badge.low{background:rgba(255,82,82,0.15);color:var(--red);border:1px solid rgba(255,82,82,0.3);}
+
+/* ── CANDIDATE BUTTONS ── */
+.candidate-row{display:flex;gap:4px;flex-wrap:wrap;padding:2px 0 4px;border-bottom:1px solid var(--border);}
+.candidate-row:empty{display:none;}
+.candidate-btn{padding:2px 8px;border:1px solid var(--border2);border-radius:10px;background:var(--surface2);color:var(--text2);font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s;}
+.candidate-btn.selected,.candidate-btn:active{background:var(--accent);color:#0a0f0d;border-color:var(--accent);}
+
 /* ── RANKING PAGE ── */
 .rank-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
 .rank-pos{width:32px;height:32px;border-radius:8px;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;flex-shrink:0;}
@@ -539,21 +559,25 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     <div class="ocr-preview" id="ocr-preview">
       <div class="ocr-preview-title" id="ocr-preview-title">📊 解析結果（編集可能）</div>
       <div class="ocr-field">
-        <span class="ocr-field-label">売上金額</span>
+        <span class="ocr-field-label">売上金額<span class="conf-badge" id="conf-sales"></span></span>
         <input class="ocr-field-input" id="ocr-sales" type="number" placeholder="0" oninput="recalcOcr()"/>
       </div>
+      <div class="candidate-row" id="cand-sales"></div>
       <div class="ocr-field">
-        <span class="ocr-field-label">配達件数</span>
+        <span class="ocr-field-label">配達件数<span class="conf-badge" id="conf-count"></span></span>
         <input class="ocr-field-input" id="ocr-count" type="number" placeholder="0" oninput="recalcOcr()"/>
       </div>
+      <div class="candidate-row" id="cand-count"></div>
       <div class="ocr-field">
-        <span class="ocr-field-label">総距離 (km)</span>
+        <span class="ocr-field-label">総距離 (km)<span class="conf-badge" id="conf-dist"></span></span>
         <input class="ocr-field-input" id="ocr-dist" type="number" placeholder="0" oninput="recalcOcr()"/>
       </div>
+      <div class="candidate-row" id="cand-dist"></div>
       <div class="ocr-field">
-        <span class="ocr-field-label">稼働時間 (h)</span>
+        <span class="ocr-field-label">稼働時間 (h)<span class="conf-badge" id="conf-hours"></span></span>
         <input class="ocr-field-input" id="ocr-hours" type="number" placeholder="0" oninput="recalcOcr()"/>
       </div>
+      <div class="candidate-row" id="cand-hours"></div>
     </div>
 
     <button class="analyze-btn" id="analyze-btn" onclick="saveOcrDataOrOpenManual()">
@@ -800,7 +824,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   <button class="nav-btn"        id="nav-settings" onclick="switchTab('settings')"><span class="nav-icon">⚙️</span>設定</button>
 </div>
 
-<div class="loading-overlay" id="loading"><div class="spinner"></div><div class="loading-text" id="loading-text">解析中...</div></div>
+<div class="loading-overlay" id="loading"><div class="spinner"></div><div class="loading-text" id="loading-text">解析中...</div><div class="loading-steps"><div class="step-dot" id="step-0"></div><div class="step-dot" id="step-1"></div><div class="step-dot" id="step-2"></div></div><div class="loading-progress-bar"><div class="loading-progress-fill" id="loading-progress"></div></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -917,6 +941,144 @@ function parseScreenshot(text, platform){
 }
 
 // ═══════════════════════════════════
+//  IMAGE PREPROCESSING
+// ═══════════════════════════════════
+async function preprocessImageCanvas(file){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = ()=>{
+      try {
+        const sw = Math.floor(img.width * 0.8);
+        const sh = Math.floor(img.height * 0.55);
+        const canvas = document.createElement('canvas');
+        canvas.width = sw; canvas.height = sh;
+        const ctx = canvas.getContext('2d');
+        const sx = Math.floor((img.width - sw) / 2);
+        ctx.drawImage(img, sx, 0, sw, sh, 0, 0, sw, sh);
+        const imgData = ctx.getImageData(0, 0, sw, sh);
+        const d = imgData.data;
+        for(let i=0; i<d.length; i+=4){
+          const gray = Math.round(0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2]);
+          const c = Math.min(255, Math.max(0, (gray - 128) * 2 + 128));
+          const bin = c >= 128 ? 255 : 0;
+          d[i] = d[i+1] = d[i+2] = bin;
+        }
+        ctx.putImageData(imgData, 0, 0);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/png');
+      } catch(e){ URL.revokeObjectURL(url); reject(e); }
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+    img.src = url;
+  });
+}
+
+// ═══════════════════════════════════
+//  3-STEP ANIMATION
+// ═══════════════════════════════════
+const STEP_MSGS = ['📐 最適化中...', '🔍 認識中...', '📊 抽出中...'];
+function setOcrStep(step){
+  document.getElementById('loading-text').textContent = STEP_MSGS[step] || '';
+  for(let i=0; i<3; i++){
+    const dot = document.getElementById('step-'+i);
+    if(!dot) continue;
+    dot.className = i < step ? 'step-dot done' : i === step ? 'step-dot active' : 'step-dot';
+  }
+  const fill = document.getElementById('loading-progress');
+  if(fill) fill.style.width = Math.round((step+1)/3*100)+'%';
+}
+function resetOcrSteps(){
+  for(let i=0; i<3; i++){
+    const dot = document.getElementById('step-'+i);
+    if(dot) dot.className='step-dot';
+  }
+  const fill = document.getElementById('loading-progress');
+  if(fill) fill.style.width='0';
+}
+
+// ═══════════════════════════════════
+//  UNIFIED OCR REGEX EXTRACTION
+// ═══════════════════════════════════
+const PATTERNS = {
+  sales: /¥\s?([\d,]+)/g,
+  count: /(\d+)\s?(件|配達)/g,
+  hours: /(\d+)\s?分/g,
+  dist:  /([\d.]+)\s?km/g
+};
+function extractAllMatches(text, patternSource){
+  const re = new RegExp(patternSource, 'g');
+  const matches = [];
+  let m;
+  while((m = re.exec(text)) !== null){
+    const val = parseFloat(m[1].replace(/,/g,''));
+    if(!isNaN(val)) matches.push(val);
+  }
+  return matches;
+}
+function extractDeliveryData(text){
+  const salesM  = extractAllMatches(text, PATTERNS.sales.source);
+  const countM  = extractAllMatches(text, PATTERNS.count.source).filter(v=>v>0&&v<500);
+  const minuteM = extractAllMatches(text, PATTERNS.hours.source);
+  const distM   = extractAllMatches(text, PATTERNS.dist.source).filter(v=>v>0&&v<2000);
+  const sales = salesM.length > 0 ? Math.max(...salesM) : 0;
+  const count = countM[0] || 0;
+  const hours = minuteM.length > 0 ? parseFloat((minuteM[0]/60).toFixed(2)) : 0;
+  const dist  = distM[0] || 0;
+  return {
+    sales, count, hours, dist,
+    candidates:{
+      sales: salesM,
+      count: countM,
+      hours: minuteM.map(v=>parseFloat((v/60).toFixed(2))),
+      dist:  distM
+    }
+  };
+}
+
+// ═══════════════════════════════════
+//  CONFIDENCE PANEL
+// ═══════════════════════════════════
+function getConfLevel(val, candidates){
+  if(val > 0 && candidates.length === 1) return 'high';
+  if(val > 0 && candidates.length > 1)  return 'mid';
+  return 'low';
+}
+const CONF_LABELS = {high:'高', mid:'中', low:'低'};
+function showConfidencePanel(extracted){
+  const fields = [
+    {id:'sales', val:extracted.sales, cands:extracted.candidates.sales},
+    {id:'count', val:extracted.count, cands:extracted.candidates.count},
+    {id:'dist',  val:extracted.dist,  cands:extracted.candidates.dist},
+    {id:'hours', val:extracted.hours, cands:extracted.candidates.hours}
+  ];
+  fields.forEach(f=>{
+    const badge   = document.getElementById('conf-'+f.id);
+    const candRow = document.getElementById('cand-'+f.id);
+    if(!badge || !candRow) return;
+    const level = getConfLevel(f.val, f.cands);
+    badge.className = 'conf-badge '+level;
+    badge.textContent = CONF_LABELS[level];
+    candRow.innerHTML = '';
+    if(f.cands.length > 1){
+      f.cands.forEach(c=>{
+        const btn = document.createElement('button');
+        btn.className = 'candidate-btn'+(c===f.val?' selected':'');
+        btn.textContent = c;
+        btn.onclick = ()=>setCandidateValue(f.id, c, candRow, btn);
+        candRow.appendChild(btn);
+      });
+    }
+  });
+}
+function setCandidateValue(fieldId, val, row, btn){
+  document.getElementById('ocr-'+fieldId).value = val;
+  row.querySelectorAll('.candidate-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  recalcOcr();
+}
+
+// ═══════════════════════════════════
 //  FILE HANDLING
 // ═══════════════════════════════════
 function setupDragDrop(){
@@ -940,26 +1102,46 @@ function loadTesseract(){
 async function handleFiles(files){
   if(!files||!files.length) return;
   const file = files[0];
-  showLoading(`📸 ${platformName(currentPlatform)}のスクリーンショットをOCR解析中...`);
+  resetOcrSteps();
+  setOcrStep(0);
+  document.getElementById('loading').classList.add('show');
 
   try {
+    // Step 0: Canvas preprocessing
+    let processedFile;
+    try {
+      processedFile = await preprocessImageCanvas(file);
+    } catch(e){
+      console.warn('[Preprocess] fallback to original', e);
+      processedFile = file;
+    }
+
+    // Step 1: Load Tesseract + OCR
+    setOcrStep(1);
     const ok = await loadTesseract();
     if(!ok || !window.Tesseract) throw new Error('Tesseract load failed');
 
-    const result = await Tesseract.recognize(file, 'jpn+eng', {
+    const result = await Tesseract.recognize(processedFile, 'jpn+eng', {
       logger: m=>{
         if(m.status === 'recognizing text'){
           document.getElementById('loading-text').textContent =
-            `OCR解析中... ${Math.round(m.progress*100)}%`;
+            `🔍 認識中... ${Math.round(m.progress*100)}%`;
         }
       }
     });
 
+    // Step 2: Extract data
+    setOcrStep(2);
+    await new Promise(r=>setTimeout(r, 300));
+
     const rawText = result.data.text;
     console.log('[OCR RAW TEXT]', rawText);
 
-    const parsed = parseScreenshot(rawText, currentPlatform);
+    const extracted = extractDeliveryData(rawText);
+    const parsed = { sales:extracted.sales, count:extracted.count, dist:extracted.dist, hours:extracted.hours };
+
     hideLoading();
+    resetOcrSteps();
 
     if(parsed.sales === 0 && parsed.count === 0 && parsed.dist === 0){
       showToast('⚠️ 数値を読み取れませんでした。手動で修正してください','#ffc107');
@@ -967,10 +1149,12 @@ async function handleFiles(files){
       showToast('📸 OCR解析完了！数値を確認してから保存してください');
     }
     showOcrPreview(parsed);
+    showConfidencePanel(extracted);
 
   } catch(err){
     console.error('[OCR Error]', err);
     hideLoading();
+    resetOcrSteps();
     showToast('⚠️ OCR失敗。手動で入力してください','#ffc107');
     openManualModal();
   }
