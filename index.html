@@ -391,6 +391,24 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .user-stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px;text-align:center;}
 .user-stat-label{font-size:10px;color:var(--text3);margin-bottom:3px;}
 .user-stat-value{font-size:16px;font-weight:900;color:var(--accent);}
+
+/* ── EVAL POPUP ── */
+.eval-overlay{display:none;position:fixed;inset:0;z-index:250;background:rgba(0,0,0,.82);align-items:flex-end;}
+.eval-overlay.open{display:flex;}
+.eval-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;padding:22px 16px 40px;width:100%;animation:slideUp .25s ease;}
+.eval-title{font-size:16px;font-weight:900;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.eval-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;}
+.eval-item{border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 8px;text-align:center;}
+.eval-item.good{border-color:rgba(0,230,118,0.5);background:rgba(0,230,118,0.07);}
+.eval-item.ok{border-color:rgba(255,193,7,0.5);background:rgba(255,193,7,0.06);}
+.eval-item.bad{border-color:rgba(255,82,82,0.5);background:rgba(255,82,82,0.06);}
+.eval-mark{font-size:26px;line-height:1;margin-bottom:5px;}
+.eval-label{font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600;}
+.eval-value{font-size:13px;font-weight:900;}
+.eval-item.good .eval-value{color:var(--accent);}
+.eval-item.ok  .eval-value{color:var(--yellow);}
+.eval-item.bad .eval-value{color:var(--red);}
+.eval-close{width:100%;padding:13px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface2);color:var(--text2);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;}
 </style>
 
 <!-- Firebase SDK -->
@@ -748,10 +766,34 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   </div>
   <div class="settings-section">
     <div class="settings-section-title">📱 iPhoneショートカット連携</div>
-    <div style="font-size:13px;color:var(--text2);line-height:1.8;">
-      iPhoneのショートカットアプリを使うと、スクリーンショットを撮影後すぐに自動アップロードできます。<br><br>
-      <strong style="color:var(--text)">1. ショートカットアプリを開く</strong><br>
-      <span style="color:var(--text3)">iPhone標準の「ショートカット」アプリを起動し、「+」ボタンをタップして新規ショートカットを作成します。</span>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px;">
+      3ステップを登録するだけで、スクリーンショット→クリップボード→自動OCR解析が完成します。
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;display:flex;gap:10px;align-items:flex-start;">
+        <div style="width:28px;height:28px;border-radius:8px;background:var(--accent-dim);border:1px solid rgba(0,230,118,0.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:var(--accent);flex-shrink:0;">1</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;">ショートカットアプリを開く</div>
+          <div style="font-size:11px;color:var(--text3);">iPhone標準の「ショートカット」アプリを起動し、「+」ボタンをタップして新規ショートカットを作成</div>
+        </div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;display:flex;gap:10px;align-items:flex-start;">
+        <div style="width:28px;height:28px;border-radius:8px;background:var(--accent-dim);border:1px solid rgba(0,230,118,0.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:var(--accent);flex-shrink:0;">2</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;">スクリーンショットを撮影→クリップボードにコピー</div>
+          <div style="font-size:11px;color:var(--text3);">アクション追加→「スクリーンショットを撮る」を選択→続けて「クリップボードにコピー」を追加</div>
+        </div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;display:flex;gap:10px;align-items:flex-start;">
+        <div style="width:28px;height:28px;border-radius:8px;background:var(--accent-dim);border:1px solid rgba(0,230,118,0.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:var(--accent);flex-shrink:0;">3</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;">URLを開く</div>
+          <div style="font-size:11px;color:var(--text3);">「URLを開く」アクションを追加→URL欄に<br><span style="color:var(--accent);font-family:'Space Mono',monospace;font-size:10px;word-break:break-all;">https://shohy17.github.io/delivery-score/</span><br>を入力して保存</div>
+        </div>
+      </div>
+      <div style="background:rgba(0,230,118,0.06);border:1px solid rgba(0,230,118,0.2);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.6;">
+        ✅ 次回からショートカットを実行するとアプリが開き、クリップボードの画像を自動でOCR解析します
+      </div>
     </div>
   </div>
   <div class="settings-section">
@@ -825,6 +867,15 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 </div>
 
 <div class="loading-overlay" id="loading"><div class="spinner"></div><div class="loading-text" id="loading-text">解析中...</div><div class="loading-steps"><div class="step-dot" id="step-0"></div><div class="step-dot" id="step-1"></div><div class="step-dot" id="step-2"></div></div><div class="loading-progress-bar"><div class="loading-progress-fill" id="loading-progress"></div></div></div>
+<!-- Eval Popup -->
+<div class="eval-overlay" id="eval-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="eval-card">
+    <div class="eval-title">📊 今回の配達評価</div>
+    <div class="eval-grid" id="eval-grid"></div>
+    <button class="eval-close" onclick="document.getElementById('eval-overlay').classList.remove('open')">閉じる</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -848,17 +899,68 @@ function init(){
   try {
     const dateInput = document.getElementById('m-date');
     if(dateInput) dateInput.value = getTodayKey();
-   
+
     applyPlatformUI(currentPlatform);
     updateHomeStats();
     renderHistory();
     renderReport();
     setupDragDrop();
-   
+    checkClipboardForImage();
+
     console.log('[App] ✅ Initialized successfully');
   } catch(err){
     console.error('[App Init Error]', err);
   }
+}
+
+// ═══════════════════════════════════
+//  CLIPBOARD AUTO-DETECTION
+// ═══════════════════════════════════
+async function checkClipboardForImage(){
+  try {
+    if(!navigator.clipboard || !navigator.clipboard.read) return;
+    const items = await navigator.clipboard.read();
+    for(const item of items){
+      const imgType = item.types.find(t => t.startsWith('image/'));
+      if(imgType){
+        const blob = await item.getType(imgType);
+        showToast('📸 クリップボードから画像を検出しました');
+        await new Promise(r => setTimeout(r, 800));
+        await handleFiles([blob]);
+        return;
+      }
+    }
+  } catch(e){
+    console.log('[Clipboard] Not available:', e.message);
+  }
+}
+
+// ═══════════════════════════════════
+//  EVAL POPUP (◯△✕ RATING)
+// ═══════════════════════════════════
+function getEvalLevel(val, hi, lo){
+  return val >= hi ? 'good' : val >= lo ? 'ok' : 'bad';
+}
+function showEvalPopup(log){
+  const fields = [
+    { label:'時給',    value: log.hourly,  unit:'円/h',  hi:3000, lo:2000 },
+    { label:'距離効率', value: log.kmprice, unit:'円/km', hi:150,  lo:100  },
+    { label:'件単価',  value: log.unit,    unit:'円/件', hi:800,  lo:600  }
+  ];
+  const marks = { good:'◯', ok:'△', bad:'✕' };
+  const grid = document.getElementById('eval-grid');
+  grid.innerHTML = fields.map(f => {
+    const level = getEvalLevel(f.value, f.hi, f.lo);
+    const disp = f.value > 0
+      ? `${f.value.toLocaleString('ja-JP')}<span style="font-size:9px;font-weight:500;margin-left:2px">${f.unit}</span>`
+      : '—';
+    return `<div class="eval-item ${level}">
+      <div class="eval-mark">${marks[level]}</div>
+      <div class="eval-label">${f.label}</div>
+      <div class="eval-value">${disp}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('eval-overlay').classList.add('open');
 }
 
 if(document.readyState === 'loading'){
@@ -1204,6 +1306,7 @@ function saveOcrData(){
   updateHomeStats();
   renderHistory();
   showToast(`✅ ${platformName(currentPlatform)}のデータを保存しました`);
+  setTimeout(() => showEvalPopup(log), 400);
 }
 
 // ═══════════════════════════════════
