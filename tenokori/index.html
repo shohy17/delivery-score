@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>副業配達の手残り見える化（無料版）</title>
+<meta name="description" content="1回の稼働の報酬から、燃料・駐輪・飲食などの直接費用を引いた残りと、1時間あたりの残りを出す計算です。入力は端末の中だけで計算します。">
+<style>
+:root{--bg:#fbf8f2;--card:#fff;--ink:#1f2328;--sub:#5b6470;--line:#e2ddd3;--accent:#1e5b8c;--warm:#c96a12;--bad:#b42318;--ok:#1d7a46}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;font-size:16px;line-height:1.6}
+main{max-width:560px;margin:0 auto;padding:16px 16px 48px}
+h1{font-size:1.3rem;margin:4px 0 4px}
+.lead{color:var(--sub);font-size:.9rem;margin:0 0 12px}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
+h2{font-size:1rem;margin:0 0 8px;color:var(--accent)}
+label{display:block;font-size:.9rem;margin:10px 0 4px}
+.hint{font-weight:normal;color:var(--sub);font-size:.8rem}
+input{width:100%;font-size:1.1rem;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.row{display:flex;gap:8px;align-items:flex-end}.row>div{flex:1;min-width:0}
+.or{color:var(--sub);font-size:.8rem;margin:8px 0 0}
+button{font-size:1rem;padding:10px 14px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+button.sub{background:#fff;color:var(--accent)}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.res{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:1rem}
+.res .k{color:var(--sub)}.res .v{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.big{font-size:1.4rem}
+.bad{color:var(--bad)}.ok{color:var(--ok)}
+.note{font-size:.82rem;color:var(--sub)}
+.err{color:var(--bad);font-size:.9rem}
+.sample{background:#fff7e6;border:1px dashed var(--warm);border-radius:8px;padding:6px 10px;font-size:.85rem;color:#7a4a0d;display:none}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+td,th{border-bottom:1px solid var(--line);padding:6px 4px;text-align:right}td:first-child,th:first-child{text-align:left}
+details summary{cursor:pointer;color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+<h1>副業配達の手残り見える化（無料版）</h1>
+<p class="lead">1回の稼働について、報酬から直接かかった費用を引いた残りと、1時間あたりの残りを出します。<b>入力した金額はこの端末の中だけで計算し、どこにも送りません。</b></p>
+
+<section aria-labelledby="in">
+<h2 id="in">1回の稼働を入力</h2>
+<p class="sample" id="sampleNote">いま入っているのは<b>仮の例</b>です（実際の記録ではありません）。自分の数字に書き換えてください。</p>
+<div class="row">
+<div><label for="reward">通常報酬（円）</label><input id="reward" inputmode="numeric" autocomplete="off"></div>
+<div><label for="bonus">ボーナス（円）<span class="hint">無ければ空欄か0</span></label><input id="bonus" inputmode="numeric" autocomplete="off"></div>
+</div>
+<label for="hours">稼働時間 <span class="hint">待機も含める。例：2.5 または 2:30</span></label>
+<input id="hours" inputmode="decimal" autocomplete="off">
+<p class="or">時間が分からなければ、開始と終了の時刻でも（日付をまたいでも可）</p>
+<div class="row">
+<div><label for="start">開始</label><input id="start" type="time"></div>
+<div><label for="end">終了</label><input id="end" type="time"></div>
+</div>
+<label for="fuel">燃料・充電（円）</label><input id="fuel" inputmode="numeric" autocomplete="off">
+<label for="parking">駐輪・駐車（円）</label><input id="parking" inputmode="numeric" autocomplete="off">
+<label for="otherCost">その他の直接費用（円）<span class="hint">この稼働のためだけに払ったもの</span></label><input id="otherCost" inputmode="numeric" autocomplete="off">
+<label for="food">この稼働で増えた飲食代（円）<span class="hint">ふだんの食事代は入れない</span></label><input id="food" inputmode="numeric" autocomplete="off">
+<div class="btns"><button id="calc">計算する</button><button class="sub" id="sample">仮の例を入れる</button><button class="sub" id="clear">消す</button></div>
+</section>
+
+<section aria-live="polite" id="out" hidden>
+<h2>結果</h2>
+<div id="errs" class="err"></div>
+<div class="res" id="res"></div>
+<p class="note" id="missing"></p>
+<p class="note"><b>これは「税引後の利益」や「確定した所得」ではありません。</b>税金・社会保険、車両やバイクの購入費・保険・修理・タイヤなどの維持費、スマホ代、入力しなかった費用は入っていません。</p>
+<div class="btns"><button class="sub" id="save">この端末に保存</button></div>
+<p class="note">保存すると、このブラウザの中にだけ残ります（ほかの端末やサーバーには送りません）。</p>
+</section>
+
+<section aria-labelledby="hist">
+<h2 id="hist">保存した記録（この端末だけ）</h2>
+<div id="records"><p class="note">まだありません。</p></div>
+</section>
+
+<section aria-labelledby="how">
+<h2 id="how">使い方</h2>
+<ol class="note">
+<li>1回の稼働が終わったら、アプリの報酬（通常分とボーナス）を入れる。</li>
+<li>稼働時間は、待っていた時間も含めて入れる。分からなければ開始と終了の時刻を入れる。</li>
+<li>その稼働のためだけに払った燃料・充電・駐輪・飲食を入れる。払っていない欄は空欄でよい（空欄は「未入力」と表示され、合計には足しません）。</li>
+<li>「1時間あたりの残り」を、時間帯や曜日ごとに比べる。保存しておくと一覧で見比べられます。</li>
+</ol>
+<details><summary>計算のしかた</summary>
+<p class="note">報酬合計＝通常報酬＋ボーナス／直接費用＝燃料・充電＋駐輪・駐車＋その他＋増えた飲食代／残り＝報酬合計−直接費用／1時間あたり＝残り÷稼働時間（時間が0か空欄なら出しません）。表示は1円単位で四捨五入しています。</p>
+</details>
+</section>
+
+<p class="note">DeliveryAI（配達の節約と手元のお金の情報）。このページは計算の補助で、収入や結果を保証するものではありません。</p>
+</main>
+<script type="module">
+import { compute, yen, hm, loadRecords, saveRecord, deleteRecord, FIELDS } from "./calc.js";
+const ids = ["reward", "bonus", "hours", "start", "end", "fuel", "parking", "otherCost", "food"];
+const $ = (id) => document.getElementById(id);
+const store = (() => { try { const s = window.localStorage; s.getItem("x"); return s; } catch { return null; } })();
+const read = () => Object.fromEntries(ids.map((k) => [k, $(k).value]));
+let last = null;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+function show() {
+  const input = read();
+  const r = compute(input);
+  last = { input, r };
+  $("out").hidden = false;
+  $("errs").innerHTML = r.errors.map(esc).join("<br>");
+  const rows = [];
+  if (r.gross !== null) {
+    rows.push(["報酬合計", yen(r.gross)]);
+    rows.push(["入力した直接費用", r.costEntered ? yen(r.costTotal) : "未入力"]);
+    rows.push([r.deficit ? "直接費用を引いた残り（赤字）" : "直接費用を引いた残り", `<span class="big ${r.deficit ? "bad" : "ok"}">${yen(r.net)}</span>`]);
+    rows.push(["稼働時間", r.hours === null ? "未入力" : hm(r.hours)]);
+    rows.push(["1時間あたりの残り", r.perHour === null ? (r.zeroHours ? "時間が0のため出せません" : "時間を入れると表示") : `<span class="big">${yen(r.perHour)}</span>`]);
+  } else {
+    rows.push(["報酬合計", "通常報酬かボーナスを入れてください"]);
+  }
+  $("res").innerHTML = rows.map(([k, v]) => `<div class="k">${k}</div><div class="v">${v}</div>`).join("");
+  // 2026-10-14：費用の欄に未入力があれば、残りは「暫定」と分かるように出す
+  const costLabels = ["燃料・充電", "駐輪・駐車", "その他の直接費用", "この稼働で増えた飲食代"];
+  const missingCosts = r.missing.filter((m) => costLabels.includes(m));
+  $("missing").textContent = r.missing.length ? `${missingCosts.length && r.gross !== null ? "【暫定】費用に未入力の欄があるため、残りは入力した費用だけを引いた暫定の値です。" : ""}未入力（合計に入れていない）：${r.missing.join("・")}` : "";
+  // 仮の例のままでは保存しない（自分の記録に架空の数字を混ぜない）
+  $("save").disabled = !r.ok || !store || sampleLoaded;
+}
+let sampleLoaded = false;
+for (const k of ["reward", "bonus", "hours", "start", "end", "fuel", "parking", "otherCost", "food"]) document.getElementById(k).addEventListener("input", () => { if (sampleLoaded) { sampleLoaded = false; document.getElementById("sampleNote").style.display = "none"; } });
+function renderRecords() {
+  const list = loadRecords(store);
+  if (!list.length) { $("records").innerHTML = '<p class="note">まだありません。</p>'; return; }
+  $("records").innerHTML = `<table><tr><th>日時</th><th>残り</th><th>1時間あたり</th><th></th></tr>${list.map((x) => `<tr><td>${esc(x.label)}</td><td>${yen(x.net)}</td><td>${x.perHour === null ? "—" : yen(x.perHour)}</td><td><button class="sub" data-del="${esc(x.id)}" aria-label="削除">削除</button></td></tr>`).join("")}</table>`;
+}
+$("calc").addEventListener("click", show);
+$("sample").addEventListener("click", () => {
+  const s = { reward: "4200", bonus: "500", hours: "", start: "18:00", end: "21:30", fuel: "", parking: "100", otherCost: "", food: "250" };
+  for (const k of ids) $(k).value = s[k];
+  $("sampleNote").style.display = "block";
+  sampleLoaded = true;
+  show();
+});
+$("clear").addEventListener("click", () => { for (const k of ids) $(k).value = ""; $("sampleNote").style.display = "none"; $("out").hidden = true; });
+$("save").addEventListener("click", () => {
+  if (!last?.r.ok) return;
+  const now = new Date();
+  const wd = "日月火水木金土"[now.getDay()];
+  const label = `${now.getMonth() + 1}/${now.getDate()}(${wd})${last.input.start ? ` ${last.input.start}〜` : ""}`;
+  saveRecord(store, { id: String(now.getTime()), label, at: now.toISOString(), start: last.input.start || null, net: last.r.net, perHour: last.r.perHour, hours: last.r.hours, values: last.r.values });
+  renderRecords();
+});
+$("records").addEventListener("click", (e) => { const id = e.target?.dataset?.del; if (id) { deleteRecord(store, id); renderRecords(); } });
+renderRecords();
+// 表示確認用：?example=1 で仮の例を入れて計算する（ふだんの初期画面は空欄）
+if (new URLSearchParams(location.search).get("example") === "1") $("sample").click();
+// 表示確認用：?probe=1 で、画面の幅と中身の幅をタイトルに書く（横にはみ出していないかの確認）
+if (new URLSearchParams(location.search).get("probe") === "1") document.title = `W${window.innerWidth}/S${document.documentElement.scrollWidth}`;
+void FIELDS;
+</script>
+</body>
+</html>
