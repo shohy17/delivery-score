@@ -30,14 +30,8 @@ deal-4cfe46aff3302508-9dee0974ca3c.png
 deal-730cfdc7592cc656-0f5789ef6ed3.png
 deal-8b6b30ed80459785-5bd0db086746.png
 deal-b6b5a50c67c568b9-96c9bc5fc72c.png
-deal-c3fc949a5209c3a9-f2e4e7fbdc57.png
-deal-d285f0cdb705bd96-77e2ae65a302.png
 deal-eaba169b79ad229d-1577dd80876b.png
-sv1010-05-shinagawa-toilet-ff6991f074c2.png
-sv1012-01-asafamima-5e85ae392ae4.png
-sv1012-02-matsuya-pass-a93368d2afb1.png
 sv1012-03-famima-coffee-compare-93ededa40f11.png
-sv1012-03-famima-coffee-compare-de076e1426a2.png
 sv1013-01-famipay-welcome-093c95b3bb66.png
 sv1013-02-shinagawa-churin-452ac85eea45.png
 sv1014-01-drink-compare-3d45c23ea2eb.png
